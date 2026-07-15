@@ -1,0 +1,30 @@
+# Android Studio
+*.iml
+.idea/
+.gradle/
+
+# Configuración local
+local.properties
+
+# Archivos generados por Gradle
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Paquetes generados
+*.apk
+*.aab
+
+# Archivos de firma y configuración sensible
+*.jks
+*.keystore
+keystore.properties
+
+# Variables de entorno
+.env
+.env.*
