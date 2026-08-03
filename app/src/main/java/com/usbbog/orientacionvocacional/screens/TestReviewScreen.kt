@@ -1,0 +1,608 @@
+package com.usbbog.orientacionvocacional.screens
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.usbbog.orientacionvocacional.ui.mobile.QuestionUi
+
+private val ReviewOrange = Color(0xFFEF7D00)
+private val ReviewBlue = Color(0xFF181E7B)
+private val ReviewBlack = Color(0xFF1D1D1B)
+private val ReviewWhite = Color(0xFFFFFFFF)
+private val ReviewSurface = Color(0xFFF3F3F5)
+private val ReviewMuted = Color(0xFF65656A)
+private val ReviewBorder = Color(0xFFDEDEE3)
+private val ReviewSuccess = Color(0xFF147A50)
+private val ReviewSuccessSoft = Color(0xFFE9F6F0)
+private val ReviewDanger = Color(0xFF9F2D20)
+private val ReviewDangerSoft = Color(0xFFFFEBE8)
+
+/** Adaptacion movil de TestReviewPage. */
+@Composable
+fun TestReviewWebScreen(
+    questions: List<QuestionUi>,
+    answeredQuestionNumbers: Set<Int>,
+    isSubmitting: Boolean,
+    errorMessage: String?,
+    onEditQuestion: (Int) -> Unit,
+    onSubmitClick: () -> Unit,
+    onBackToQuestionsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val answeredCount = questions.indices.count { index ->
+        index + 1 in answeredQuestionNumbers
+    }
+    val unansweredCount = (questions.size - answeredCount).coerceAtLeast(0)
+    val isComplete = questions.isNotEmpty() && unansweredCount == 0
+
+    BackHandler(enabled = !isSubmitting) {
+        onBackToQuestionsClick()
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(ReviewSurface),
+    ) {
+        ReviewHeader()
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(
+                start = 14.dp,
+                top = 18.dp,
+                end = 14.dp,
+                bottom = 26.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item {
+                Column {
+                    Text(
+                        text = "REVISIÓN FINAL",
+                        color = ReviewOrange,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
+                    )
+                    Spacer(Modifier.height(7.dp))
+                    Text(
+                        text = "Verifica tus respuestas antes de enviar",
+                        color = ReviewBlack,
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontSize = 28.sp,
+                            lineHeight = 36.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    )
+                }
+            }
+
+            item {
+                CompletionSummaryCard(
+                    answeredCount = answeredCount,
+                    totalQuestions = questions.size,
+                    unansweredCount = unansweredCount,
+                )
+            }
+
+            item {
+                Text(
+                    text = "Detalle de preguntas",
+                    color = ReviewBlack,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            itemsIndexed(
+                items = questions,
+                key = { index, _ -> index },
+            ) { index, question ->
+                val answered = index + 1 in answeredQuestionNumbers
+                ReviewQuestionItem(
+                    questionNumber = index + 1,
+                    statement = question.statement,
+                    answered = answered,
+                    enabled = !isSubmitting,
+                    onEditClick = { onEditQuestion(index) },
+                )
+            }
+
+            item {
+                ConfirmationCard(
+                    isComplete = isComplete,
+                    unansweredCount = unansweredCount,
+                    isSubmitting = isSubmitting,
+                    errorMessage = errorMessage,
+                    onSubmitClick = onSubmitClick,
+                    onBackToQuestionsClick = onBackToQuestionsClick,
+                )
+            }
+        }
+
+        ReviewFooter()
+    }
+}
+
+@Composable
+private fun ReviewHeader() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ReviewWhite)
+            .statusBarsPadding(),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(ReviewOrange, ReviewBlue),
+                    ),
+                ),
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(ReviewOrange),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "USB",
+                    color = ReviewWhite,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Spacer(Modifier.size(10.dp))
+
+            Column {
+                Text(
+                    text = "UNIVERSIDAD DE SAN BUENAVENTURA",
+                    color = ReviewBlue,
+                    fontSize = 10.sp,
+                    lineHeight = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Orientación vocacional - Bogotá",
+                    color = ReviewMuted,
+                    fontSize = 9.sp,
+                    lineHeight = 12.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompletionSummaryCard(
+    answeredCount: Int,
+    totalQuestions: Int,
+    unansweredCount: Int,
+) {
+    val complete = unansweredCount == 0 && totalQuestions > 0
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = ReviewWhite),
+        border = BorderStroke(1.dp, ReviewBorder),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = "CHECKLIST",
+                color = ReviewOrange,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Resumen de completitud",
+                color = ReviewBlack,
+                fontSize = 21.sp,
+                lineHeight = 27.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SummaryMetric(
+                    value = answeredCount.toString(),
+                    label = "Respondidas",
+                    color = ReviewSuccess,
+                    modifier = Modifier.weight(1f),
+                )
+                SummaryMetric(
+                    value = unansweredCount.toString(),
+                    label = "Pendientes",
+                    color = if (complete) ReviewSuccess else ReviewDanger,
+                    modifier = Modifier.weight(1f),
+                )
+                SummaryMetric(
+                    value = totalQuestions.toString(),
+                    label = "Total",
+                    color = ReviewBlue,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            Spacer(Modifier.height(15.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(if (complete) ReviewSuccessSoft else ReviewDangerSoft)
+                    .border(
+                        width = 1.dp,
+                        color = if (complete) ReviewSuccess.copy(alpha = 0.35f) else ReviewDanger.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(15.dp),
+                    )
+                    .padding(14.dp),
+            ) {
+                Text(
+                    text = "$answeredCount respuestas registradas",
+                    color = if (complete) ReviewSuccess else ReviewDanger,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (complete) {
+                        "Todo listo para finalizar."
+                    } else {
+                        "Aún faltan $unansweredCount respuestas."
+                    },
+                    color = ReviewBlack,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryMetric(
+    value: String,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(15.dp))
+            .background(color.copy(alpha = 0.08f))
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = value,
+            color = color,
+            fontSize = 21.sp,
+            lineHeight = 25.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = label,
+            color = ReviewMuted,
+            fontSize = 9.sp,
+            lineHeight = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun ReviewQuestionItem(
+    questionNumber: Int,
+    statement: String,
+    answered: Boolean,
+    enabled: Boolean,
+    onEditClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(19.dp),
+        colors = CardDefaults.cardColors(containerColor = ReviewWhite),
+        border = BorderStroke(1.dp, ReviewBorder),
+    ) {
+        Column(modifier = Modifier.padding(15.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(35.dp)
+                        .clip(RoundedCornerShape(11.dp))
+                        .background(if (answered) ReviewSuccessSoft else ReviewDangerSoft),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = questionNumber.toString(),
+                        color = if (answered) ReviewSuccess else ReviewDanger,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+
+                Spacer(Modifier.size(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Pregunta $questionNumber",
+                        color = ReviewBlack,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = statement,
+                        color = ReviewMuted,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StatusPill(answered = answered)
+
+                OutlinedButton(
+                    onClick = onEditClick,
+                    enabled = enabled,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ReviewBlue),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ReviewBlue),
+                    contentPadding = PaddingValues(horizontal = 15.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = "Editar",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatusPill(answered: Boolean) {
+    Text(
+        text = if (answered) "Respondida" else "Pendiente",
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(if (answered) ReviewSuccessSoft else ReviewDangerSoft)
+            .padding(horizontal = 11.dp, vertical = 7.dp),
+        color = if (answered) ReviewSuccess else ReviewDanger,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+    )
+}
+
+@Composable
+private fun ConfirmationCard(
+    isComplete: Boolean,
+    unansweredCount: Int,
+    isSubmitting: Boolean,
+    errorMessage: String?,
+    onSubmitClick: () -> Unit,
+    onBackToQuestionsClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = ReviewBlack),
+    ) {
+        Column(modifier = Modifier.padding(19.dp)) {
+            Text(
+                text = "ENVIO",
+                color = ReviewOrange,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Confirmación de envío",
+                color = ReviewWhite,
+                fontSize = 21.sp,
+                lineHeight = 27.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(14.dp))
+
+            ReviewBullet("Tus respuestas se usarán para calcular el perfil vocacional.")
+            ReviewBullet("La siguiente pantalla mostrará áreas y carreras sugeridas.")
+            ReviewBullet("Puedes volver y ajustar cualquier respuesta antes de enviar.")
+
+            if (!isComplete) {
+                Spacer(Modifier.height(13.dp))
+                Text(
+                    text = "Completa las $unansweredCount preguntas pendientes para habilitar el envío.",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ReviewDanger.copy(alpha = 0.22f))
+                        .border(
+                            1.dp,
+                            ReviewDanger.copy(alpha = 0.65f),
+                            RoundedCornerShape(14.dp),
+                        )
+                        .padding(13.dp),
+                    color = Color(0xFFFFD6D1),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+
+            if (!errorMessage.isNullOrBlank()) {
+                Spacer(Modifier.height(13.dp))
+                Text(
+                    text = errorMessage,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ReviewDanger.copy(alpha = 0.22f))
+                        .padding(13.dp),
+                    color = Color(0xFFFFD6D1),
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            Button(
+                onClick = onSubmitClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = isComplete && !isSubmitting,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ReviewOrange,
+                    disabledContainerColor = Color(0xFF5A5A5D),
+                    disabledContentColor = ReviewWhite.copy(alpha = 0.55f),
+                ),
+                contentPadding = PaddingValues(vertical = 14.dp),
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = ReviewWhite,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.size(9.dp))
+                }
+                Text(
+                    text = if (isSubmitting) "Enviando..." else "Finalizar prueba",
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = onBackToQuestionsClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSubmitting,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, ReviewWhite.copy(alpha = 0.55f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ReviewWhite),
+                contentPadding = PaddingValues(vertical = 13.dp),
+            ) {
+                Text("Volver a preguntas", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewBullet(text: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(ReviewOrange),
+        )
+        Spacer(Modifier.size(10.dp))
+        Text(
+            text = text,
+            modifier = Modifier.weight(1f),
+            color = ReviewWhite.copy(alpha = 0.84f),
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+        )
+    }
+}
+
+@Composable
+private fun ReviewFooter() {
+    Text(
+        text = "Universidad de San Buenaventura, Sede Bogotá",
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ReviewBlue)
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        color = ReviewWhite.copy(alpha = 0.82f),
+        fontSize = 9.sp,
+        lineHeight = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.Center,
+    )
+}

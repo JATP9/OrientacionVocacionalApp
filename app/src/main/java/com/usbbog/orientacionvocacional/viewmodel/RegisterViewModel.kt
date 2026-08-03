@@ -9,208 +9,135 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class RegisterViewModel : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow(RegisterUiState())
+    private val _uiState = MutableStateFlow(RegisterUiState())
 
-    val uiState: StateFlow<RegisterUiState> =
-        _uiState.asStateFlow()
+    val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
 
-    fun onFieldChange(
-        field: RegisterField,
-        value: String
-    ) {
+    fun onFieldChange(field: RegisterField, value: String) {
         val currentState = _uiState.value
 
         _uiState.value = when (field) {
+            RegisterField.FullName -> currentState.copy(
+                fullName = value,
+                errorMessage = null,
+            )
 
-            RegisterField.FullName -> {
-                currentState.copy(
-                    fullName = value,
-                    errorMessage = null
-                )
-            }
+            RegisterField.DocumentNumber -> currentState.copy(
+                documentNumber = value,
+                errorMessage = null,
+            )
 
-            RegisterField.DocumentNumber -> {
-                currentState.copy(
-                    documentNumber = value,
-                    errorMessage = null
-                )
-            }
+            RegisterField.Email -> currentState.copy(
+                email = value,
+                errorMessage = null,
+            )
 
-            RegisterField.Email -> {
-                currentState.copy(
-                    email = value,
-                    errorMessage = null
-                )
-            }
+            RegisterField.Phone -> currentState.copy(
+                phone = value,
+                errorMessage = null,
+            )
 
-            RegisterField.Phone -> {
-                currentState.copy(
-                    phone = value,
-                    errorMessage = null
-                )
-            }
+            RegisterField.Password -> currentState.copy(
+                password = value,
+                errorMessage = null,
+            )
 
-            RegisterField.Password -> {
-                currentState.copy(
-                    password = value,
-                    errorMessage = null
-                )
-            }
-
-            RegisterField.ConfirmPassword -> {
-                currentState.copy(
-                    confirmPassword = value,
-                    errorMessage = null
-                )
-            }
+            RegisterField.ConfirmPassword -> currentState.copy(
+                confirmPassword = value,
+                errorMessage = null,
+            )
         }
     }
 
     fun onAcceptTermsChange(accepted: Boolean) {
         _uiState.value = _uiState.value.copy(
             acceptTerms = accepted,
-            errorMessage = null
+            errorMessage = null,
         )
     }
 
     fun onAuthorizeDataChange(authorized: Boolean) {
         _uiState.value = _uiState.value.copy(
             authorizeData = authorized,
-            errorMessage = null
+            errorMessage = null,
         )
     }
 
     /**
-     * Por ahora valida la información del formulario.
+     * Valida los campos que actualmente forman parte de RegisterUiState.
      *
-     * Cuando se conecte el backend, después de estas
-     * validaciones se llamará al repositorio.
+     * RegisterScreen valida antes los campos adicionales del formulario web,
+     * incluida la fecha de nacimiento y la mayoría de edad.
      */
     fun register(): Boolean {
-
         val currentState = _uiState.value
-
-        val fullName =
-            currentState.fullName.trim()
-
-        val documentNumber =
-            currentState.documentNumber.trim()
-
-        val email =
-            currentState.email.trim()
-
-        val phone =
-            currentState.phone.trim()
+        val fullName = currentState.fullName.trim()
+        val documentNumber = currentState.documentNumber.trim()
+        val email = currentState.email.trim()
+        val phone = currentState.phone.trim()
 
         return when {
+            fullName.isBlank() -> fail("Debes ingresar el nombre completo.")
 
-            fullName.isBlank() -> {
-                showError(
-                    "Debes ingresar el nombre completo."
-                )
-                false
-            }
+            fullName.length < 3 -> fail(
+                "El nombre debe tener al menos 3 caracteres.",
+            )
 
-            fullName.length < 3 -> {
-                showError(
-                    "El nombre debe tener al menos 3 caracteres."
-                )
-                false
-            }
+            documentNumber.isBlank() -> fail(
+                "Debes ingresar el número de documento.",
+            )
 
-            documentNumber.isBlank() -> {
-                showError(
-                    "Debes ingresar el número de documento."
-                )
-                false
-            }
+            !documentNumber.all(Char::isDigit) -> fail(
+                "El número de documento solo debe contener números.",
+            )
 
-            !documentNumber.all { it.isDigit() } -> {
-                showError(
-                    "El número de documento solo debe contener números."
-                )
-                false
-            }
+            documentNumber.length < 6 -> fail(
+                "Debes ingresar un número de documento válido.",
+            )
 
-            email.isBlank() -> {
-                showError(
-                    "Debes ingresar el correo electrónico."
-                )
-                false
-            }
+            email.isBlank() -> fail(
+                "Debes ingresar el correo electrónico.",
+            )
 
-            !isValidEmail(email) -> {
-                showError(
-                    "Debes ingresar un correo electrónico válido."
-                )
-                false
-            }
+            !isValidEmail(email) -> fail(
+                "Debes ingresar un correo electrónico válido.",
+            )
 
-            phone.isBlank() -> {
-                showError(
-                    "Debes ingresar el número de teléfono."
-                )
-                false
-            }
+            phone.isBlank() -> fail(
+                "Debes ingresar el número de teléfono.",
+            )
 
-            !phone.all { it.isDigit() } -> {
-                showError(
-                    "El teléfono solo debe contener números."
-                )
-                false
-            }
+            !phone.all(Char::isDigit) -> fail(
+                "El teléfono solo debe contener números.",
+            )
 
-            phone.length < 7 -> {
-                showError(
-                    "Debes ingresar un teléfono válido."
-                )
-                false
-            }
+            phone.length < 7 -> fail(
+                "Debes ingresar un teléfono válido.",
+            )
 
-            currentState.password.isBlank() -> {
-                showError(
-                    "Debes crear una contraseña."
-                )
-                false
-            }
+            currentState.password.isBlank() -> fail(
+                "Debes crear una contraseña.",
+            )
 
-            currentState.password.length < 6 -> {
-                showError(
-                    "La contraseña debe tener mínimo 6 caracteres."
-                )
-                false
-            }
+            currentState.password.length < 8 -> fail(
+                "La contraseña debe tener mínimo 8 caracteres.",
+            )
 
-            currentState.confirmPassword.isBlank() -> {
-                showError(
-                    "Debes confirmar la contraseña."
-                )
-                false
-            }
+            currentState.confirmPassword.isBlank() -> fail(
+                "Debes confirmar la contraseña.",
+            )
 
-            currentState.password !=
-                    currentState.confirmPassword -> {
+            currentState.password != currentState.confirmPassword -> fail(
+                "Las contraseñas no coinciden.",
+            )
 
-                showError(
-                    "Las contraseñas no coinciden."
-                )
-                false
-            }
+            !currentState.acceptTerms -> fail(
+                "Debes aceptar los términos y condiciones.",
+            )
 
-            !currentState.acceptTerms -> {
-                showError(
-                    "Debes aceptar los términos y condiciones."
-                )
-                false
-            }
-
-            !currentState.authorizeData -> {
-                showError(
-                    "Debes autorizar el tratamiento de datos personales."
-                )
-                false
-            }
+            !currentState.authorizeData -> fail(
+                "Debes autorizar el tratamiento de datos personales.",
+            )
 
             else -> {
                 _uiState.value = currentState.copy(
@@ -218,41 +145,41 @@ class RegisterViewModel : ViewModel() {
                     documentNumber = documentNumber,
                     email = email,
                     phone = phone,
-                    errorMessage = null
+                    errorMessage = null,
                 )
-
                 true
             }
         }
     }
 
     fun setLoading(loading: Boolean) {
-        _uiState.value = _uiState.value.copy(
-            isLoading = loading
-        )
+        _uiState.value = _uiState.value.copy(isLoading = loading)
     }
 
     fun showError(message: String) {
         _uiState.value = _uiState.value.copy(
             isLoading = false,
-            errorMessage = message
+            errorMessage = message,
         )
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(
-            errorMessage = null
-        )
+        _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
     fun resetForm() {
         _uiState.value = RegisterUiState()
     }
 
-    private fun isValidEmail(email: String): Boolean {
-        val emailRegex =
-            Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
+    private fun fail(message: String): Boolean {
+        showError(message)
+        return false
+    }
 
+    private fun isValidEmail(email: String): Boolean {
+        val emailRegex = Regex(
+            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+        )
         return emailRegex.matches(email)
     }
 }
