@@ -17,11 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-//import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -57,6 +54,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.usbbog.orientacionvocacional.ui.components.UsbAppFooter
+import com.usbbog.orientacionvocacional.ui.components.UsbAppTopBar
 
 private val WebOrange = Color(0xFFEF7D00)
 private val WebBlue = Color(0xFF181E7B)
@@ -66,11 +65,11 @@ private val WebGray = Color(0xFF858581)
 private val WebBorder = Color(0xFFD8D6D1)
 
 /**
- * Login móvil basado en la versión web.
+ * Pantalla de inicio de sesión.
  *
- * La pantalla conserva el estado y las validaciones del LoginViewModel que
- * llegan desde AppNavigation. Solo mantiene estado visual local para mostrar
- * u ocultar la contraseña.
+ * El estado y las validaciones provienen del LoginViewModel a través de
+ * AppNavigation. La pantalla solamente conserva estado visual local para
+ * mostrar u ocultar la contraseña.
  */
 @Composable
 fun LoginScreen(
@@ -85,7 +84,6 @@ fun LoginScreen(
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
-    onHelpClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -93,7 +91,9 @@ fun LoginScreen(
             .fillMaxSize()
             .background(WebWhite),
     ) {
-        WebLoginTopBar(onHelpClick = onHelpClick)
+        UsbAppTopBar(
+            userLabel = "Usuario",
+        )
 
         BoxWithConstraints(
             modifier = Modifier
@@ -116,7 +116,10 @@ fun LoginScreen(
                     .verticalScroll(rememberScrollState())
                     .imePadding()
                     .heightIn(min = viewportHeight)
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                    .padding(
+                        horizontal = 16.dp,
+                        vertical = 20.dp,
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -136,98 +139,7 @@ fun LoginScreen(
             }
         }
 
-        WebLoginFooter()
-    }
-}
-
-@Composable
-private fun WebLoginTopBar(
-    onHelpClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .heightIn(min = 68.dp)
-            .shadow(elevation = 4.dp)
-            .background(WebWhite)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        WebInstitutionMark(
-            darkText = true,
-            modifier = Modifier.weight(1f),
-        )
-
-        Spacer(Modifier.width(8.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier
-                    .width(142.dp)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .border(
-                        width = 1.dp,
-                        color = Color(0xFFBEBEBE),
-                        shape = RoundedCornerShape(100.dp),
-                    )
-                    .clickable(onClick = onHelpClick),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.size(22.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawCircle(
-                            color = Color(0xFF858581),
-                            radius = size.minDimension / 2f - 0.75.dp.toPx(),
-                            style = Stroke(width = 1.5.dp.toPx()),
-                        )
-                    }
-                    Text(
-                        text = "?",
-                        color = Color(0xFF777773),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-
-                Spacer(Modifier.width(5.dp))
-
-                Text(
-                    text = "¿Cómo responder?",
-                    color = Color(0xFF777773),
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(72.dp)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(WebOrange),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Usuario",
-                    color = WebWhite,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-            }
-        }
+        UsbAppFooter()
     }
 }
 
@@ -246,7 +158,10 @@ private fun WebLoginCard(
     onForgotPasswordClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var passwordVisible by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     val cardShape = RoundedCornerShape(30.dp)
 
     Card(
@@ -260,10 +175,17 @@ private fun WebLoginCard(
                 spotColor = Color.Black.copy(alpha = 0.12f),
             ),
         shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = WebWhite),
-        border = BorderStroke(1.dp, WebWhite.copy(alpha = 0.55f)),
+        colors = CardDefaults.cardColors(
+            containerColor = WebWhite,
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = WebWhite.copy(alpha = 0.55f),
+        ),
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -292,10 +214,14 @@ private fun WebLoginCard(
                     ),
                 )
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(
+                    modifier = Modifier.height(10.dp),
+                )
 
                 Text(
-                    text = "Accede a la plataforma institucional de orientación vocacional",
+                    text =
+                        "Accede a la plataforma institucional de " +
+                                "orientación vocacional",
                     color = WebWhite,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontSize = 15.5.sp,
@@ -325,7 +251,9 @@ private fun WebLoginCard(
                     enabled = !isLoading,
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp),
+                )
 
                 WebLoginField(
                     value = password,
@@ -333,24 +261,31 @@ private fun WebLoginCard(
                     label = "Contraseña",
                     placeholder = "Ingresa tu contraseña",
                     keyboardType = KeyboardType.Password,
-                    visualTransformation = if (passwordVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
+                    visualTransformation =
+                        if (passwordVisible) {
+                            VisualTransformation.None
+                        } else {
+                            PasswordVisualTransformation()
+                        },
                     enabled = !isLoading,
                     trailingIcon = {
                         IconButton(
-                            onClick = { passwordVisible = !passwordVisible },
+                            onClick = {
+                                passwordVisible = !passwordVisible
+                            },
                             enabled = !isLoading,
                             modifier = Modifier.size(40.dp),
                         ) {
-                            PasswordVisibilityGlyph(visible = passwordVisible)
+                            PasswordVisibilityGlyph(
+                                visible = passwordVisible,
+                            )
                         }
                     },
                 )
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(
+                    modifier = Modifier.height(14.dp),
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -360,7 +295,9 @@ private fun WebLoginCard(
                     Row(
                         modifier = Modifier.clickable(
                             enabled = !isLoading,
-                            onClick = { onRememberChange(!rememberMe) },
+                            onClick = {
+                                onRememberChange(!rememberMe)
+                            },
                         ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -368,12 +305,22 @@ private fun WebLoginCard(
                             modifier = Modifier
                                 .size(18.dp)
                                 .background(
-                                    color = if (rememberMe) WebOrange else WebWhite,
+                                    color =
+                                        if (rememberMe) {
+                                            WebOrange
+                                        } else {
+                                            WebWhite
+                                        },
                                     shape = RoundedCornerShape(1.dp),
                                 )
                                 .border(
                                     width = 1.dp,
-                                    color = if (rememberMe) WebOrange else Color(0xFF858581),
+                                    color =
+                                        if (rememberMe) {
+                                            WebOrange
+                                        } else {
+                                            Color(0xFF858581)
+                                        },
                                     shape = RoundedCornerShape(1.dp),
                                 ),
                             contentAlignment = Alignment.Center,
@@ -389,7 +336,9 @@ private fun WebLoginCard(
                             }
                         }
 
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(
+                            modifier = Modifier.width(10.dp),
+                        )
 
                         Text(
                             text = "Recordarme",
@@ -414,19 +363,33 @@ private fun WebLoginCard(
                 }
 
                 if (!errorMessage.isNullOrBlank()) {
-                    Spacer(Modifier.height(10.dp))
-                    WebLoginError(message = errorMessage)
+                    Spacer(
+                        modifier = Modifier.height(10.dp),
+                    )
+
+                    WebLoginError(
+                        message = errorMessage,
+                    )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp),
+                )
 
                 WebGradientLoginButton(
-                    text = if (isLoading) "Validando..." else "Ingresar",
+                    text =
+                        if (isLoading) {
+                            "Validando..."
+                        } else {
+                            "Ingresar"
+                        },
                     onClick = onLoginClick,
                     loading = isLoading,
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp),
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -436,19 +399,25 @@ private fun WebLoginCard(
                         modifier = Modifier.weight(1f),
                         color = Color(0xFFDFDDD8),
                     )
+
                     Text(
                         text = "acceso seguro",
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        modifier = Modifier.padding(
+                            horizontal = 10.dp,
+                        ),
                         color = WebGray,
                         fontSize = 14.sp,
                     )
+
                     HorizontalDivider(
                         modifier = Modifier.weight(1f),
                         color = Color(0xFFDFDDD8),
                     )
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(
+                    modifier = Modifier.height(12.dp),
+                )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -460,11 +429,18 @@ private fun WebLoginCard(
                         color = WebBlack,
                         fontSize = 14.5.sp,
                     )
-                    Spacer(Modifier.width(5.dp))
+
+                    Spacer(
+                        modifier = Modifier.width(5.dp),
+                    )
+
                     Text(
                         text = "Regístrate",
                         modifier = Modifier
-                            .clickable(enabled = !isLoading, onClick = onRegisterClick)
+                            .clickable(
+                                enabled = !isLoading,
+                                onClick = onRegisterClick,
+                            )
                             .padding(vertical = 5.dp),
                         color = WebOrange,
                         fontSize = 14.5.sp,
@@ -472,10 +448,39 @@ private fun WebLoginCard(
                     )
                 }
 
-                Spacer(Modifier.height(9.dp))
+                Spacer(
+                    modifier = Modifier.height(9.dp),
+                )
 
                 Text(
-                    text = "UNIVERSIDAD DE SAN BUENAVENTURA VIGILADA MINIEDUCACIÓN",
+                    text =
+                        "Demo administrador: admin@usb.edu.co · " +
+                                "contraseña de 6+ caracteres",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0xFFFFF3E4),
+                            shape = RoundedCornerShape(10.dp),
+                        )
+                        .padding(
+                            horizontal = 10.dp,
+                            vertical = 8.dp,
+                        ),
+                    color = WebOrange,
+                    fontSize = 10.5.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+
+                Spacer(
+                    modifier = Modifier.height(9.dp),
+                )
+
+                Text(
+                    text =
+                        "UNIVERSIDAD DE SAN BUENAVENTURA " +
+                                "VIGILADA MINIEDUCACIÓN",
                     modifier = Modifier.fillMaxWidth(),
                     color = Color(0xFFC5C2BB),
                     fontSize = 8.sp,
@@ -496,11 +501,14 @@ private fun WebLoginField(
     placeholder: String,
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
+    visualTransformation: VisualTransformation =
+        VisualTransformation.None,
     enabled: Boolean = true,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
         Text(
             text = label,
             color = WebBlack,
@@ -508,7 +516,9 @@ private fun WebLoginField(
             fontWeight = FontWeight.SemiBold,
         )
 
-        Spacer(Modifier.height(7.dp))
+        Spacer(
+            modifier = Modifier.height(7.dp),
+        )
 
         OutlinedTextField(
             value = value,
@@ -525,7 +535,9 @@ private fun WebLoginField(
             },
             enabled = enabled,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = keyboardType,
+            ),
             visualTransformation = visualTransformation,
             trailingIcon = trailingIcon,
             shape = RoundedCornerShape(16.dp),
@@ -551,7 +563,9 @@ private fun PasswordVisibilityGlyph(
     visible: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier.size(22.dp)) {
+    Canvas(
+        modifier = modifier.size(22.dp),
+    ) {
         val stroke = 1.dp.toPx()
         val color = Color(0xFF8A8A86)
 
@@ -560,11 +574,13 @@ private fun PasswordVisibilityGlyph(
             radius = size.minDimension / 2f - stroke / 2f,
             style = Stroke(width = stroke),
         )
+
         drawCircle(
             color = color,
             radius = size.minDimension * 0.22f,
             style = Stroke(width = stroke),
         )
+
         if (visible) {
             drawCircle(
                 color = WebBlue,
@@ -639,7 +655,10 @@ private fun WebLoginError(
                 color = Color(0xFFE4A6A6),
                 shape = RoundedCornerShape(12.dp),
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(
+                horizontal = 12.dp,
+                vertical = 10.dp,
+            ),
     ) {
         Text(
             text = message,
@@ -647,116 +666,5 @@ private fun WebLoginError(
             fontSize = 13.sp,
             lineHeight = 18.sp,
         )
-    }
-}
-
-@Composable
-private fun WebLoginFooter(
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(WebBlue)
-            .navigationBarsPadding()
-            .heightIn(min = 74.dp)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        WebInstitutionMark(
-            darkText = false,
-            showSecondaryMark = true,
-            modifier = Modifier.width(118.dp),
-        )
-
-        Spacer(Modifier.width(6.dp))
-
-        Text(
-            text = "Somos una institución educativa de la Comunidad Franciscana Provincia de la Santa Fe " +
-                    "de educación superior\n" +
-                    "“con personería jurídica reconocida por el Ministerio de Educación en Resolución 1326 " +
-                    "del 25 de marzo de 1975”\n" +
-                    "Copyright © 2026 Universidad de San Buenaventura, Sede Bogotá | Políticas de uso y " +
-                    "privacidad | Términos y Condiciones\n" +
-                    "Institución de educación superior sujeta a la inspección y vigilancia del Ministerio " +
-                    "de Educación Nacional",
-            modifier = Modifier.weight(1f),
-            color = WebWhite,
-            fontSize = 5.8.sp,
-            lineHeight = 7.2.sp,
-            letterSpacing = 0.05.sp,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-/**
- * Marca tipográfica temporal construida en Compose. Puede sustituirse por los
- * logos oficiales cuando los archivos se agreguen a res/drawable.
- */
-@Composable
-private fun WebInstitutionMark(
-    darkText: Boolean,
-    modifier: Modifier = Modifier,
-    showSecondaryMark: Boolean = false,
-) {
-    val badgeWidth = if (showSecondaryMark) 25.dp else 30.dp
-    val badgeHeight = if (showSecondaryMark) 34.dp else 40.dp
-    val itemSpacing = if (showSecondaryMark) 4.dp else 5.dp
-
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .width(badgeWidth)
-                .height(badgeHeight)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 9.dp,
-                        topEnd = 9.dp,
-                        bottomStart = 6.dp,
-                        bottomEnd = 6.dp,
-                    ),
-                )
-                .background(WebOrange),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "USB",
-                color = WebWhite,
-                fontSize = 6.5.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-
-        Spacer(Modifier.width(itemSpacing))
-
-        Text(
-            text = "UNIVERSIDAD DE\nSAN BUENAVENTURA",
-            color = if (darkText) WebBlack else WebWhite,
-            fontSize = if (darkText) 7.5.sp else 5.8.sp,
-            lineHeight = if (darkText) 9.sp else 6.8.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-        )
-
-        if (showSecondaryMark) {
-            Spacer(Modifier.width(4.dp))
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(28.dp)
-                    .background(WebWhite.copy(alpha = 0.85f)),
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = "USB",
-                color = WebWhite,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.ExtraBold,
-            )
-        }
     }
 }

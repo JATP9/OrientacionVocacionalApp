@@ -4,7 +4,6 @@ import android.app.DatePickerDialog
 import android.content.Context
 import android.util.Patterns
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,12 +17,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -60,7 +56,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -70,6 +65,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.usbbog.orientacionvocacional.ui.components.UsbAppFooter
+import com.usbbog.orientacionvocacional.ui.components.UsbAppTopBar
 import com.usbbog.orientacionvocacional.ui.mobile.RegisterField
 import com.usbbog.orientacionvocacional.ui.mobile.RegisterUiState
 import java.util.Calendar
@@ -188,55 +185,35 @@ private val semesterOptions = (1..10).map(Int::toString)
 /**
  * Registro móvil basado en la pantalla web.
  *
- * Los campos que ya existen en RegisterViewModel continúan conectados mediante
- * RegisterUiState y onFieldChange. La fecha de nacimiento, el género, la
- * ubicación y los datos académicos se validan aquí; deberán agregarse al estado
- * y al modelo de usuario cuando se conecte el backend para poder persistirlos.
+ * Todos los campos se mantienen en RegisterUiState y se validan antes de crear
+ * la sesión local. La persistencia definitiva quedará a cargo del backend.
  */
 @Composable
 fun RegisterWebScreenV2(
     state: RegisterUiState,
     onFieldChange: (RegisterField, String) -> Unit,
+    onBirthDateChange: (Long) -> Unit,
+    onBelongsToUniversityChange: (Boolean) -> Unit,
+    onActiveStudentChange: (Boolean) -> Unit,
     onAcceptTermsChange: (Boolean) -> Unit,
     onAuthorizeDataChange: (Boolean) -> Unit,
     onRegisterClick: () -> Unit,
     onBackToLoginClick: () -> Unit,
-    onHelpClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
 
-    var firstName by rememberSaveable { mutableStateOf("") }
-    var lastName by rememberSaveable { mutableStateOf("") }
-    var birthDateMillis by rememberSaveable { mutableStateOf<Long?>(null) }
-    var gender by rememberSaveable { mutableStateOf("") }
-    var genderOther by rememberSaveable { mutableStateOf("") }
-    var department by rememberSaveable { mutableStateOf("") }
-    var city by rememberSaveable { mutableStateOf("") }
-    var belongsToUniversity by rememberSaveable { mutableStateOf(false) }
-    var isActiveStudent by rememberSaveable { mutableStateOf(false) }
-    var currentCareer by rememberSaveable { mutableStateOf("") }
-    var currentSemester by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var formErrors by remember { mutableStateOf(RegisterFormErrors()) }
     var pageError by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun updateFullName(newFirstName: String, newLastName: String) {
-        onFieldChange(
-            RegisterField.FullName,
-            listOf(newFirstName.trim(), newLastName.trim())
-                .filter(String::isNotBlank)
-                .joinToString(" "),
-        )
-    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(RegisterWhite),
     ) {
-        RegisterTopBar(onHelpClick = onHelpClick)
+        UsbAppTopBar(userLabel = "Usuario")
 
         Box(
             modifier = Modifier
@@ -278,12 +255,18 @@ fun RegisterWebScreenV2(
                     colors = CardDefaults.cardColors(
                         containerColor = RegisterWhite.copy(alpha = 0.98f),
                     ),
-                    border = BorderStroke(1.dp, RegisterWhite.copy(alpha = 0.55f)),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = RegisterWhite.copy(alpha = 0.55f),
+                    ),
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 22.dp, vertical = 24.dp),
+                            .padding(
+                                horizontal = 22.dp,
+                                vertical = 24.dp,
+                            ),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         Column(
@@ -293,18 +276,23 @@ fun RegisterWebScreenV2(
                             Text(
                                 text = "Registro de Usuario",
                                 color = RegisterBlack,
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontSize = 32.sp,
-                                    lineHeight = 36.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                ),
+                                style =
+                                    MaterialTheme.typography.headlineLarge.copy(
+                                        fontSize = 32.sp,
+                                        lineHeight = 36.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                    ),
                                 textAlign = TextAlign.Center,
                             )
 
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(
+                                modifier = Modifier.height(10.dp),
+                            )
 
                             Text(
-                                text = "Completa el formulario para acceder a la prueba vocacional",
+                                text =
+                                    "Completa el formulario para acceder " +
+                                            "a la prueba vocacional",
                                 color = RegisterMuted,
                                 fontSize = 15.sp,
                                 lineHeight = 21.sp,
@@ -313,11 +301,12 @@ fun RegisterWebScreenV2(
                         }
 
                         RegisterTextField(
-                            value = firstName,
+                            value = state.firstName,
                             onValueChange = {
-                                firstName = it
-                                updateFullName(it, lastName)
-                                formErrors = formErrors.copy(firstName = null)
+                                onFieldChange(RegisterField.FirstName, it)
+                                formErrors = formErrors.copy(
+                                    firstName = null,
+                                )
                                 pageError = null
                             },
                             label = "Nombre",
@@ -328,11 +317,12 @@ fun RegisterWebScreenV2(
                         )
 
                         RegisterTextField(
-                            value = lastName,
+                            value = state.lastName,
                             onValueChange = {
-                                lastName = it
-                                updateFullName(firstName, it)
-                                formErrors = formErrors.copy(lastName = null)
+                                onFieldChange(RegisterField.LastName, it)
+                                formErrors = formErrors.copy(
+                                    lastName = null,
+                                )
                                 pageError = null
                             },
                             label = "Apellido",
@@ -346,7 +336,9 @@ fun RegisterWebScreenV2(
                             value = state.email,
                             onValueChange = {
                                 onFieldChange(RegisterField.Email, it)
-                                formErrors = formErrors.copy(email = null)
+                                formErrors = formErrors.copy(
+                                    email = null,
+                                )
                                 pageError = null
                             },
                             label = "Correo",
@@ -363,7 +355,9 @@ fun RegisterWebScreenV2(
                                     RegisterField.DocumentNumber,
                                     it.filter(Char::isDigit).take(15),
                                 )
-                                formErrors = formErrors.copy(document = null)
+                                formErrors = formErrors.copy(
+                                    document = null,
+                                )
                                 pageError = null
                             },
                             label = "Identificación",
@@ -374,22 +368,35 @@ fun RegisterWebScreenV2(
                         )
 
                         RegisterDateField(
-                            value = birthDateMillis?.let(::formatDate).orEmpty(),
+                            value = state.birthDateMillis
+                                ?.let(::formatDate)
+                                .orEmpty(),
                             error = formErrors.birthDate,
                             enabled = !state.isLoading,
                             onClick = {
                                 showBirthDatePicker(
                                     context = context,
-                                    selectedDateMillis = birthDateMillis,
+                                    selectedDateMillis =
+                                        state.birthDateMillis,
                                 ) { selectedDate ->
-                                    birthDateMillis = selectedDate
-                                    val dateError = validateBirthDate(selectedDate)
-                                    formErrors = formErrors.copy(birthDate = dateError)
-                                    pageError = if (dateError == UNDER_AGE_MESSAGE) {
-                                        UNDER_AGE_MESSAGE
-                                    } else {
-                                        null
-                                    }
+                                    onBirthDateChange(selectedDate)
+
+                                    val dateError =
+                                        validateBirthDate(selectedDate)
+
+                                    formErrors = formErrors.copy(
+                                        birthDate = dateError,
+                                    )
+
+                                    pageError =
+                                        if (
+                                            dateError ==
+                                            UNDER_AGE_MESSAGE
+                                        ) {
+                                            UNDER_AGE_MESSAGE
+                                        } else {
+                                            null
+                                        }
                                 }
                             },
                         )
@@ -401,7 +408,9 @@ fun RegisterWebScreenV2(
                                     RegisterField.Phone,
                                     it.filter(Char::isDigit).take(15),
                                 )
-                                formErrors = formErrors.copy(phone = null)
+                                formErrors = formErrors.copy(
+                                    phone = null,
+                                )
                                 pageError = null
                             },
                             label = "Teléfono",
@@ -412,17 +421,14 @@ fun RegisterWebScreenV2(
                         )
 
                         RegisterDropdownField(
-                            selectedValue = gender,
+                            selectedValue = state.gender,
                             label = "Género",
                             placeholder = "-",
                             options = genderOptions,
                             error = formErrors.gender,
                             enabled = !state.isLoading,
                             onOptionSelected = {
-                                gender = it
-                                if (it != "Otro") {
-                                    genderOther = ""
-                                }
+                                onFieldChange(RegisterField.Gender, it)
                                 formErrors = formErrors.copy(
                                     gender = null,
                                     genderOther = null,
@@ -432,82 +438,106 @@ fun RegisterWebScreenV2(
                         )
 
                         RegisterTextField(
-                            value = genderOther,
+                            value = state.genderOther,
                             onValueChange = {
-                                genderOther = it
-                                formErrors = formErrors.copy(genderOther = null)
+                                onFieldChange(
+                                    RegisterField.GenderOther,
+                                    it,
+                                )
+                                formErrors = formErrors.copy(
+                                    genderOther = null,
+                                )
                                 pageError = null
                             },
                             label = "En caso de otro ¿cuál?",
                             placeholder = "-",
                             error = formErrors.genderOther,
-                            enabled = gender == "Otro" && !state.isLoading,
-                            capitalization = KeyboardCapitalization.Sentences,
+                            enabled =
+                                state.gender == "Otro" &&
+                                        !state.isLoading,
+                            capitalization =
+                                KeyboardCapitalization.Sentences,
                         )
 
                         RegisterDropdownField(
-                            selectedValue = department,
+                            selectedValue = state.department,
                             label = "Departamento",
                             placeholder = "-",
                             options = departmentOptions,
                             error = formErrors.department,
                             enabled = !state.isLoading,
                             onOptionSelected = {
-                                department = it
-                                formErrors = formErrors.copy(department = null)
+                                onFieldChange(
+                                    RegisterField.Department,
+                                    it,
+                                )
+                                formErrors = formErrors.copy(
+                                    department = null,
+                                )
                                 pageError = null
                             },
                         )
 
                         RegisterDropdownField(
-                            selectedValue = city,
+                            selectedValue = state.city,
                             label = "Ciudad",
                             placeholder = "-",
                             options = cityOptions,
                             error = formErrors.city,
                             enabled = !state.isLoading,
                             onOptionSelected = {
-                                city = it
-                                formErrors = formErrors.copy(city = null)
+                                onFieldChange(RegisterField.City, it)
+                                formErrors = formErrors.copy(
+                                    city = null,
+                                )
                                 pageError = null
                             },
                         )
 
-                        // Los datos de acceso se muestran antes de las preguntas
-                        // institucionales, siguiendo el orden del diseño solicitado.
                         RegisterTextField(
                             value = state.password,
                             onValueChange = {
-                                onFieldChange(RegisterField.Password, it)
-                                formErrors = formErrors.copy(password = null)
+                                onFieldChange(
+                                    RegisterField.Password,
+                                    it,
+                                )
+                                formErrors = formErrors.copy(
+                                    password = null,
+                                )
                                 pageError = null
                             },
                             label = "Contraseña",
                             placeholder = "Ingresa tu contraseña",
                             keyboardType = KeyboardType.Password,
-                            visualTransformation = if (passwordVisible) {
-                                VisualTransformation.None
-                            } else {
-                                PasswordVisualTransformation()
-                            },
+                            visualTransformation =
+                                if (passwordVisible) {
+                                    VisualTransformation.None
+                                } else {
+                                    PasswordVisualTransformation()
+                                },
                             error = formErrors.password,
                             enabled = !state.isLoading,
                             trailingIcon = {
                                 IconButton(
-                                    onClick = { passwordVisible = !passwordVisible },
+                                    onClick = {
+                                        passwordVisible =
+                                            !passwordVisible
+                                    },
                                     enabled = !state.isLoading,
                                 ) {
                                     Icon(
-                                        imageVector = if (passwordVisible) {
-                                            Icons.Default.VisibilityOff
-                                        } else {
-                                            Icons.Default.Visibility
-                                        },
-                                        contentDescription = if (passwordVisible) {
-                                            "Ocultar contraseña"
-                                        } else {
-                                            "Mostrar contraseña"
-                                        },
+                                        imageVector =
+                                            if (passwordVisible) {
+                                                Icons.Default.VisibilityOff
+                                            } else {
+                                                Icons.Default.Visibility
+                                            },
+                                        contentDescription =
+                                            if (passwordVisible) {
+                                                "Ocultar contraseña"
+                                            } else {
+                                                "Mostrar contraseña"
+                                            },
                                         tint = RegisterMuted,
                                     )
                                 }
@@ -517,38 +547,49 @@ fun RegisterWebScreenV2(
                         RegisterTextField(
                             value = state.confirmPassword,
                             onValueChange = {
-                                onFieldChange(RegisterField.ConfirmPassword, it)
-                                formErrors = formErrors.copy(confirmPassword = null)
+                                onFieldChange(
+                                    RegisterField.ConfirmPassword,
+                                    it,
+                                )
+                                formErrors = formErrors.copy(
+                                    confirmPassword = null,
+                                )
                                 pageError = null
                             },
                             label = "Confirmar contraseña",
                             placeholder = "Repite tu contraseña",
                             keyboardType = KeyboardType.Password,
-                            visualTransformation = if (confirmPasswordVisible) {
-                                VisualTransformation.None
-                            } else {
-                                PasswordVisualTransformation()
-                            },
+                            visualTransformation =
+                                if (confirmPasswordVisible) {
+                                    VisualTransformation.None
+                                } else {
+                                    PasswordVisualTransformation()
+                                },
                             error = formErrors.confirmPassword,
                             enabled = !state.isLoading,
                             trailingIcon = {
                                 IconButton(
                                     onClick = {
-                                        confirmPasswordVisible = !confirmPasswordVisible
+                                        confirmPasswordVisible =
+                                            !confirmPasswordVisible
                                     },
                                     enabled = !state.isLoading,
                                 ) {
                                     Icon(
-                                        imageVector = if (confirmPasswordVisible) {
-                                            Icons.Default.VisibilityOff
-                                        } else {
-                                            Icons.Default.Visibility
-                                        },
-                                        contentDescription = if (confirmPasswordVisible) {
-                                            "Ocultar confirmación de contraseña"
-                                        } else {
-                                            "Mostrar confirmación de contraseña"
-                                        },
+                                        imageVector =
+                                            if (confirmPasswordVisible) {
+                                                Icons.Default.VisibilityOff
+                                            } else {
+                                                Icons.Default.Visibility
+                                            },
+                                        contentDescription =
+                                            if (confirmPasswordVisible) {
+                                                "Ocultar confirmación " +
+                                                        "de contraseña"
+                                            } else {
+                                                "Mostrar confirmación " +
+                                                        "de contraseña"
+                                            },
                                         tint = RegisterMuted,
                                     )
                                 }
@@ -556,68 +597,85 @@ fun RegisterWebScreenV2(
                         )
 
                         RegisterCheckLine(
-                            checked = belongsToUniversity,
-                            text = "¿Se encuentra usted actualmente inscrito en la Universidad de San Buenaventura?",
+                            checked = state.belongsToUniversity,
+                            text =
+                                "¿Se encuentra usted actualmente inscrito " +
+                                        "en la Universidad de San Buenaventura?",
                             onCheckedChange = {
-                                belongsToUniversity = it
-                                if (!it && !isActiveStudent) {
-                                    currentCareer = ""
-                                    currentSemester = ""
+                                onBelongsToUniversityChange(it)
+
+                                if (!it && !state.isActiveStudent) {
                                     formErrors = formErrors.copy(
                                         currentCareer = null,
                                         currentSemester = null,
                                     )
                                 }
+
                                 pageError = null
                             },
                             enabled = !state.isLoading,
                         )
 
                         RegisterCheckLine(
-                            checked = isActiveStudent,
-                            text = "¿Es usted estudiante activo de algún programa de la Universidad de San Buenaventura?",
+                            checked = state.isActiveStudent,
+                            text =
+                                "¿Es usted estudiante activo de algún " +
+                                        "programa de la Universidad de " +
+                                        "San Buenaventura?",
                             onCheckedChange = {
-                                isActiveStudent = it
-                                if (!it && !belongsToUniversity) {
-                                    currentCareer = ""
-                                    currentSemester = ""
+                                onActiveStudentChange(it)
+
+                                if (!it && !state.belongsToUniversity) {
                                     formErrors = formErrors.copy(
                                         currentCareer = null,
                                         currentSemester = null,
                                     )
                                 }
+
                                 pageError = null
                             },
                             enabled = !state.isLoading,
                         )
 
-                        // Estos campos aparecen inmediatamente debajo de las
-                        // preguntas que los habilitan.
-                        if (belongsToUniversity || isActiveStudent) {
+                        if (
+                            state.belongsToUniversity ||
+                            state.isActiveStudent
+                        ) {
                             RegisterTextField(
-                                value = currentCareer,
+                                value = state.currentCareer,
                                 onValueChange = {
-                                    currentCareer = it
-                                    formErrors = formErrors.copy(currentCareer = null)
+                                    onFieldChange(
+                                        RegisterField.CurrentCareer,
+                                        it,
+                                    )
+                                    formErrors = formErrors.copy(
+                                        currentCareer = null,
+                                    )
                                     pageError = null
                                 },
                                 label = "Carrera actual",
                                 placeholder = "Programa académico",
                                 error = formErrors.currentCareer,
                                 enabled = !state.isLoading,
-                                capitalization = KeyboardCapitalization.Words,
+                                capitalization =
+                                    KeyboardCapitalization.Words,
                             )
 
                             RegisterDropdownField(
-                                selectedValue = currentSemester,
+                                selectedValue = state.currentSemester,
                                 label = "Semestre actual",
                                 placeholder = "-",
                                 options = semesterOptions,
                                 error = formErrors.currentSemester,
                                 enabled = !state.isLoading,
                                 onOptionSelected = {
-                                    currentSemester = it
-                                    formErrors = formErrors.copy(currentSemester = null)
+                                    onFieldChange(
+                                        RegisterField.CurrentSemester,
+                                        it,
+                                    )
+                                    formErrors = formErrors.copy(
+                                        currentSemester = null,
+                                    )
                                     pageError = null
                                 },
                             )
@@ -625,10 +683,16 @@ fun RegisterWebScreenV2(
 
                         RegisterConsentBox(
                             checked = state.authorizeData,
-                            text = "Tus datos serán usados únicamente con fines de orientación vocacional, seguimiento académico y mejora del servicio.",
+                            text =
+                                "Tus datos serán usados únicamente con " +
+                                        "fines de orientación vocacional, " +
+                                        "seguimiento académico y mejora " +
+                                        "del servicio.",
                             onCheckedChange = {
                                 onAuthorizeDataChange(it)
-                                formErrors = formErrors.copy(dataConsent = null)
+                                formErrors = formErrors.copy(
+                                    dataConsent = null,
+                                )
                                 pageError = null
                             },
                             error = formErrors.dataConsent,
@@ -637,58 +701,89 @@ fun RegisterWebScreenV2(
 
                         RegisterConsentBox(
                             checked = state.acceptTerms,
-                            text = "Declaro haber leído y aceptado las Políticas de Tratamiento de Datos Personales, así como los Términos y Condiciones de la institución.",
+                            text =
+                                "Declaro haber leído y aceptado las " +
+                                        "Políticas de Tratamiento de Datos " +
+                                        "Personales, así como los Términos " +
+                                        "y Condiciones de la institución.",
                             onCheckedChange = {
                                 onAcceptTermsChange(it)
-                                formErrors = formErrors.copy(termsAccepted = null)
+                                formErrors = formErrors.copy(
+                                    termsAccepted = null,
+                                )
                                 pageError = null
                             },
                             error = formErrors.termsAccepted,
                             enabled = !state.isLoading,
                         )
 
-                        val visibleError = pageError
-                            ?: state.errorMessage?.takeIf(String::isNotBlank)
+                        val visibleError =
+                            pageError
+                                ?: state.errorMessage
+                                    ?.takeIf(String::isNotBlank)
 
                         if (visibleError != null) {
-                            RegisterErrorBanner(message = visibleError)
+                            RegisterErrorBanner(
+                                message = visibleError,
+                            )
                         }
 
                         RegisterActions(
                             isLoading = state.isLoading,
                             onCancelClick = onBackToLoginClick,
                             onRegisterClick = {
-                                val newErrors = validateRegisterForm(
-                                    firstName = firstName,
-                                    lastName = lastName,
-                                    email = state.email,
-                                    document = state.documentNumber,
-                                    birthDateMillis = birthDateMillis,
-                                    phone = state.phone,
-                                    gender = gender,
-                                    genderOther = genderOther,
-                                    department = department,
-                                    city = city,
-                                    requiresAcademicData =
-                                        belongsToUniversity || isActiveStudent,
-                                    currentCareer = currentCareer,
-                                    currentSemester = currentSemester,
-                                    password = state.password,
-                                    confirmPassword = state.confirmPassword,
-                                    dataConsent = state.authorizeData,
-                                    termsAccepted = state.acceptTerms,
-                                )
+                                val newErrors =
+                                    validateRegisterForm(
+                                        firstName =
+                                            state.firstName,
+                                        lastName =
+                                            state.lastName,
+                                        email =
+                                            state.email,
+                                        document =
+                                            state.documentNumber,
+                                        birthDateMillis =
+                                            state.birthDateMillis,
+                                        phone =
+                                            state.phone,
+                                        gender =
+                                            state.gender,
+                                        genderOther =
+                                            state.genderOther,
+                                        department =
+                                            state.department,
+                                        city =
+                                            state.city,
+                                        requiresAcademicData =
+                                            state.belongsToUniversity ||
+                                                    state.isActiveStudent,
+                                        currentCareer =
+                                            state.currentCareer,
+                                        currentSemester =
+                                            state.currentSemester,
+                                        password =
+                                            state.password,
+                                        confirmPassword =
+                                            state.confirmPassword,
+                                        dataConsent =
+                                            state.authorizeData,
+                                        termsAccepted =
+                                            state.acceptTerms,
+                                    )
 
                                 formErrors = newErrors
 
                                 if (newErrors.hasErrors()) {
-                                    pageError = if (
-                                        newErrors.birthDate == UNDER_AGE_MESSAGE
-                                    ) {
-                                        UNDER_AGE_MESSAGE
-                                    } else {
-                                        "Revisa los campos marcados antes de continuar."
-                                    }
+                                    pageError =
+                                        if (
+                                            newErrors.birthDate ==
+                                            UNDER_AGE_MESSAGE
+                                        ) {
+                                            UNDER_AGE_MESSAGE
+                                        } else {
+                                            "Revisa los campos marcados " +
+                                                    "antes de continuar."
+                                        }
                                 } else {
                                     pageError = null
                                     onRegisterClick()
@@ -700,7 +795,7 @@ fun RegisterWebScreenV2(
             }
         }
 
-        RegisterFooter()
+        UsbAppFooter()
     }
 }
 
@@ -712,15 +807,22 @@ private fun RegisterTextField(
     placeholder: String,
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
+    capitalization: KeyboardCapitalization =
+        KeyboardCapitalization.None,
+    visualTransformation: VisualTransformation =
+        VisualTransformation.None,
     error: String? = null,
     enabled: Boolean = true,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
         RegisterFieldLabel(text = label)
-        Spacer(Modifier.height(8.dp))
+
+        Spacer(
+            modifier = Modifier.height(8.dp),
+        )
 
         OutlinedTextField(
             value = value,
@@ -775,29 +877,55 @@ private fun RegisterDateField(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        RegisterFieldLabel(text = "Fecha de nacimiento")
-        Spacer(Modifier.height(8.dp))
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        RegisterFieldLabel(
+            text = "Fecha de nacimiento",
+        )
+
+        Spacer(
+            modifier = Modifier.height(8.dp),
+        )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(if (enabled) RegisterWhite else Color(0xFFF2F0EC))
+                .background(
+                    if (enabled) {
+                        RegisterWhite
+                    } else {
+                        Color(0xFFF2F0EC)
+                    },
+                )
                 .border(
                     width = 1.dp,
-                    color = if (error != null) RegisterError else RegisterBorder,
+                    color =
+                        if (error != null) {
+                            RegisterError
+                        } else {
+                            RegisterBorder
+                        },
                     shape = RoundedCornerShape(16.dp),
                 )
-                .clickable(enabled = enabled, onClick = onClick)
+                .clickable(
+                    enabled = enabled,
+                    onClick = onClick,
+                )
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = value.ifBlank { "día/mes/año" },
                 modifier = Modifier.weight(1f),
-                color = if (value.isBlank()) Color(0xFF8B8A84) else RegisterBlack,
+                color =
+                    if (value.isBlank()) {
+                        Color(0xFF8B8A84)
+                    } else {
+                        RegisterBlack
+                    },
                 fontSize = 15.sp,
             )
 
@@ -824,36 +952,64 @@ private fun RegisterDropdownField(
     onOptionSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember {
+        mutableStateOf(false)
+    }
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
         RegisterFieldLabel(text = label)
-        Spacer(Modifier.height(8.dp))
 
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Spacer(
+            modifier = Modifier.height(8.dp),
+        )
+
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (enabled) RegisterWhite else Color(0xFFF2F0EC))
+                    .background(
+                        if (enabled) {
+                            RegisterWhite
+                        } else {
+                            Color(0xFFF2F0EC)
+                        },
+                    )
                     .border(
                         width = 1.dp,
-                        color = if (error != null) RegisterError else RegisterBorder,
+                        color =
+                            if (error != null) {
+                                RegisterError
+                            } else {
+                                RegisterBorder
+                            },
                         shape = RoundedCornerShape(16.dp),
                     )
-                    .clickable(enabled = enabled) { expanded = true }
+                    .clickable(
+                        enabled = enabled,
+                        onClick = {
+                            expanded = true
+                        },
+                    )
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = selectedValue.ifBlank { placeholder },
-                    modifier = Modifier.weight(1f),
-                    color = if (selectedValue.isBlank()) {
-                        Color(0xFF8B8A84)
-                    } else {
-                        RegisterBlack
+                    text = selectedValue.ifBlank {
+                        placeholder
                     },
+                    modifier = Modifier.weight(1f),
+                    color =
+                        if (selectedValue.isBlank()) {
+                            Color(0xFF8B8A84)
+                        } else {
+                            RegisterBlack
+                        },
                     fontSize = 15.sp,
                 )
 
@@ -867,7 +1023,9 @@ private fun RegisterDropdownField(
 
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false },
+                onDismissRequest = {
+                    expanded = false
+                },
                 modifier = Modifier
                     .fillMaxWidth(0.88f)
                     .background(RegisterWhite),
@@ -895,7 +1053,9 @@ private fun RegisterDropdownField(
 }
 
 @Composable
-private fun RegisterFieldLabel(text: String) {
+private fun RegisterFieldLabel(
+    text: String,
+) {
     Text(
         text = text,
         color = Color(0xFF2A2A27),
@@ -905,9 +1065,14 @@ private fun RegisterFieldLabel(text: String) {
 }
 
 @Composable
-private fun RegisterFieldError(error: String?) {
+private fun RegisterFieldError(
+    error: String?,
+) {
     if (error != null) {
-        Spacer(Modifier.height(5.dp))
+        Spacer(
+            modifier = Modifier.height(5.dp),
+        )
+
         Text(
             text = error,
             color = RegisterError,
@@ -928,7 +1093,12 @@ private fun RegisterCheckLine(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled) { onCheckedChange(!checked) },
+            .clickable(
+                enabled = enabled,
+                onClick = {
+                    onCheckedChange(!checked)
+                },
+            ),
         verticalAlignment = Alignment.Top,
     ) {
         Checkbox(
@@ -943,7 +1113,9 @@ private fun RegisterCheckLine(
             ),
         )
 
-        Spacer(Modifier.width(10.dp))
+        Spacer(
+            modifier = Modifier.width(10.dp),
+        )
 
         Text(
             text = text,
@@ -964,14 +1136,24 @@ private fun RegisterConsentBox(
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(RegisterSoftBackground)
-                .clickable(enabled = enabled) { onCheckedChange(!checked) }
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .clickable(
+                    enabled = enabled,
+                    onClick = {
+                        onCheckedChange(!checked)
+                    },
+                )
+                .padding(
+                    horizontal = 14.dp,
+                    vertical = 14.dp,
+                ),
             verticalAlignment = Alignment.Top,
         ) {
             Checkbox(
@@ -986,7 +1168,9 @@ private fun RegisterConsentBox(
                 ),
             )
 
-            Spacer(Modifier.width(10.dp))
+            Spacer(
+                modifier = Modifier.width(10.dp),
+            )
 
             Text(
                 text = text,
@@ -1008,11 +1192,14 @@ private fun RegisterActions(
     onRegisterClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+    BoxWithConstraints(
+        modifier = modifier.fillMaxWidth(),
+    ) {
         if (maxWidth >= 320.dp) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement =
+                    Arrangement.spacedBy(14.dp),
             ) {
                 RegisterSecondaryButton(
                     text = "Cancelar",
@@ -1020,8 +1207,14 @@ private fun RegisterActions(
                     enabled = !isLoading,
                     modifier = Modifier.weight(1f),
                 )
+
                 RegisterPrimaryButton(
-                    text = if (isLoading) "Registrando..." else "Registrarse",
+                    text =
+                        if (isLoading) {
+                            "Registrando..."
+                        } else {
+                            "Registrarse"
+                        },
                     onClick = onRegisterClick,
                     enabled = !isLoading,
                     modifier = Modifier.weight(1f),
@@ -1030,13 +1223,20 @@ private fun RegisterActions(
         } else {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement =
+                    Arrangement.spacedBy(12.dp),
             ) {
                 RegisterPrimaryButton(
-                    text = if (isLoading) "Registrando..." else "Registrarse",
+                    text =
+                        if (isLoading) {
+                            "Registrando..."
+                        } else {
+                            "Registrarse"
+                        },
                     onClick = onRegisterClick,
                     enabled = !isLoading,
                 )
+
                 RegisterSecondaryButton(
                     text = "Cancelar",
                     onClick = onCancelClick,
@@ -1061,14 +1261,20 @@ private fun RegisterPrimaryButton(
             .height(56.dp),
         enabled = enabled,
         shape = RoundedCornerShape(100.dp),
-        contentPadding = PaddingValues(horizontal = 24.dp),
+        contentPadding = PaddingValues(
+            horizontal = 24.dp,
+        ),
         colors = ButtonDefaults.buttonColors(
             containerColor = RegisterOrange,
             contentColor = RegisterWhite,
-            disabledContainerColor = RegisterOrange.copy(alpha = 0.55f),
-            disabledContentColor = RegisterWhite.copy(alpha = 0.85f),
+            disabledContainerColor =
+                RegisterOrange.copy(alpha = 0.55f),
+            disabledContentColor =
+                RegisterWhite.copy(alpha = 0.85f),
         ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 8.dp,
+        ),
     ) {
         Text(
             text = text,
@@ -1092,11 +1298,15 @@ private fun RegisterSecondaryButton(
             .height(56.dp),
         enabled = enabled,
         shape = RoundedCornerShape(100.dp),
-        border = BorderStroke(1.dp, RegisterBorder),
+        border = BorderStroke(
+            width = 1.dp,
+            color = RegisterBorder,
+        ),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = RegisterWhite,
             contentColor = RegisterOrange,
-            disabledContentColor = RegisterOrange.copy(alpha = 0.45f),
+            disabledContentColor =
+                RegisterOrange.copy(alpha = 0.45f),
         ),
     ) {
         Text(
@@ -1124,7 +1334,10 @@ private fun RegisterErrorBanner(
                 color = RegisterError.copy(alpha = 0.28f),
                 shape = RoundedCornerShape(16.dp),
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(
+                horizontal = 14.dp,
+                vertical = 12.dp,
+            ),
     ) {
         Text(
             text = message,
@@ -1133,201 +1346,6 @@ private fun RegisterErrorBanner(
             lineHeight = 18.sp,
             fontWeight = FontWeight.Medium,
         )
-    }
-}
-
-@Composable
-private fun RegisterTopBar(
-    onHelpClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .heightIn(min = 68.dp)
-            .shadow(elevation = 4.dp)
-            .background(RegisterWhite)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RegisterInstitutionMark(
-            darkText = true,
-            modifier = Modifier.weight(1f),
-        )
-
-        Spacer(Modifier.width(8.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                modifier = Modifier
-                    .width(142.dp)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .border(
-                        width = 1.dp,
-                        color = Color(0xFFBEBEBE),
-                        shape = RoundedCornerShape(100.dp),
-                    )
-                    .clickable(onClick = onHelpClick),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.size(22.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawCircle(
-                            color = Color(0xFF858581),
-                            radius = size.minDimension / 2f - 0.75.dp.toPx(),
-                            style = Stroke(width = 1.5.dp.toPx()),
-                        )
-                    }
-                    Text(
-                        text = "?",
-                        color = Color(0xFF777773),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-
-                Spacer(Modifier.width(5.dp))
-
-                Text(
-                    text = "¿Cómo responder?",
-                    color = Color(0xFF777773),
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(72.dp)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(RegisterOrange),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Usuario",
-                    color = RegisterWhite,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RegisterFooter(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(RegisterBlue)
-            .navigationBarsPadding()
-            .heightIn(min = 74.dp)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RegisterInstitutionMark(
-            darkText = false,
-            showSecondaryMark = true,
-            modifier = Modifier.width(118.dp),
-        )
-
-        Spacer(Modifier.width(6.dp))
-
-        Text(
-            text = "Somos una institución educativa de la Comunidad Franciscana Provincia de la Santa Fe " +
-                    "de educación superior\n" +
-                    "“con personería jurídica reconocida por el Ministerio de Educación en Resolución 1326 " +
-                    "del 25 de marzo de 1975”\n" +
-                    "Copyright © 2026 Universidad de San Buenaventura, Sede Bogotá | Políticas de uso y " +
-                    "privacidad | Términos y Condiciones\n" +
-                    "Institución de educación superior sujeta a la inspección y vigilancia del Ministerio " +
-                    "de Educación Nacional",
-            modifier = Modifier.weight(1f),
-            color = RegisterWhite,
-            fontSize = 5.8.sp,
-            lineHeight = 7.2.sp,
-            letterSpacing = 0.05.sp,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun RegisterInstitutionMark(
-    darkText: Boolean,
-    modifier: Modifier = Modifier,
-    showSecondaryMark: Boolean = false,
-) {
-    val badgeWidth = if (showSecondaryMark) 25.dp else 30.dp
-    val badgeHeight = if (showSecondaryMark) 34.dp else 40.dp
-
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .width(badgeWidth)
-                .height(badgeHeight)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 9.dp,
-                        topEnd = 9.dp,
-                        bottomStart = 6.dp,
-                        bottomEnd = 6.dp,
-                    ),
-                )
-                .background(RegisterOrange),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "USB",
-                color = RegisterWhite,
-                fontSize = 6.5.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-
-        Spacer(Modifier.width(if (showSecondaryMark) 4.dp else 5.dp))
-
-        Text(
-            text = "UNIVERSIDAD DE\nSAN BUENAVENTURA",
-            color = if (darkText) RegisterBlack else RegisterWhite,
-            fontSize = if (darkText) 7.5.sp else 5.8.sp,
-            lineHeight = if (darkText) 9.sp else 6.8.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-        )
-
-        if (showSecondaryMark) {
-            Spacer(Modifier.width(4.dp))
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(28.dp)
-                    .background(RegisterWhite.copy(alpha = 0.85f)),
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = "USB",
-                color = RegisterWhite,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.ExtraBold,
-            )
-        }
     }
 }
 
@@ -1349,24 +1367,25 @@ private data class RegisterFormErrors(
     val dataConsent: String? = null,
     val termsAccepted: String? = null,
 ) {
-    fun hasErrors(): Boolean = listOf(
-        firstName,
-        lastName,
-        email,
-        document,
-        birthDate,
-        phone,
-        gender,
-        genderOther,
-        department,
-        city,
-        currentCareer,
-        currentSemester,
-        password,
-        confirmPassword,
-        dataConsent,
-        termsAccepted,
-    ).any { it != null }
+    fun hasErrors(): Boolean =
+        listOf(
+            firstName,
+            lastName,
+            email,
+            document,
+            birthDate,
+            phone,
+            gender,
+            genderOther,
+            department,
+            city,
+            currentCareer,
+            currentSemester,
+            password,
+            confirmPassword,
+            dataConsent,
+            termsAccepted,
+        ).any { it != null }
 }
 
 private fun validateRegisterForm(
@@ -1387,108 +1406,152 @@ private fun validateRegisterForm(
     confirmPassword: String,
     dataConsent: Boolean,
     termsAccepted: Boolean,
-): RegisterFormErrors = RegisterFormErrors(
-    firstName = if (firstName.trim().length < 2) {
-        "Ingresa el nombre."
-    } else {
-        null
-    },
-    lastName = if (lastName.trim().length < 2) {
-        "Ingresa los apellidos."
-    } else {
-        null
-    },
-    email = if (!Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
-        "Ingresa un correo válido."
-    } else {
-        null
-    },
-    document = if (document.trim().length < 6) {
-        "Ingresa un documento válido."
-    } else {
-        null
-    },
-    birthDate = validateBirthDate(birthDateMillis),
-    phone = if (phone.trim().length < 7) {
-        "Ingresa un teléfono válido."
-    } else {
-        null
-    },
-    gender = if (gender.isBlank()) {
-        "Selecciona un género."
-    } else {
-        null
-    },
-    genderOther = if (gender == "Otro" && genderOther.isBlank()) {
-        "Describe el género seleccionado."
-    } else {
-        null
-    },
-    department = if (department.isBlank()) {
-        "Selecciona un departamento."
-    } else {
-        null
-    },
-    city = if (city.isBlank()) {
-        "Selecciona una ciudad."
-    } else {
-        null
-    },
-    currentCareer = if (requiresAcademicData && currentCareer.isBlank()) {
-        "Indica la carrera actual."
-    } else {
-        null
-    },
-    currentSemester = if (requiresAcademicData && currentSemester.isBlank()) {
-        "Selecciona el semestre actual."
-    } else {
-        null
-    },
-    password = when {
-        password.isBlank() -> "Ingresa una contraseña."
-        password.length < 8 -> "La contraseña debe tener mínimo 8 caracteres."
-        else -> null
-    },
-    confirmPassword = when {
-        confirmPassword.isBlank() -> "Confirma tu contraseña."
-        password != confirmPassword -> "Las contraseñas no coinciden."
-        else -> null
-    },
-    dataConsent = if (!dataConsent) {
-        "Debes confirmar que leíste el aviso sobre el uso de tus datos."
-    } else {
-        null
-    },
-    termsAccepted = if (!termsAccepted) {
-        "Debes aceptar políticas y términos."
-    } else {
-        null
-    },
-)
+): RegisterFormErrors =
+    RegisterFormErrors(
+        firstName =
+            if (firstName.trim().length < 2) {
+                "Ingresa el nombre."
+            } else {
+                null
+            },
+        lastName =
+            if (lastName.trim().length < 2) {
+                "Ingresa los apellidos."
+            } else {
+                null
+            },
+        email =
+            if (
+                !Patterns.EMAIL_ADDRESS
+                    .matcher(email.trim())
+                    .matches()
+            ) {
+                "Ingresa un correo válido."
+            } else {
+                null
+            },
+        document =
+            if (document.trim().length < 6) {
+                "Ingresa un documento válido."
+            } else {
+                null
+            },
+        birthDate = validateBirthDate(birthDateMillis),
+        phone =
+            if (phone.trim().length < 7) {
+                "Ingresa un teléfono válido."
+            } else {
+                null
+            },
+        gender =
+            if (gender.isBlank()) {
+                "Selecciona un género."
+            } else {
+                null
+            },
+        genderOther =
+            if (
+                gender == "Otro" &&
+                genderOther.isBlank()
+            ) {
+                "Describe el género seleccionado."
+            } else {
+                null
+            },
+        department =
+            if (department.isBlank()) {
+                "Selecciona un departamento."
+            } else {
+                null
+            },
+        city =
+            if (city.isBlank()) {
+                "Selecciona una ciudad."
+            } else {
+                null
+            },
+        currentCareer =
+            if (
+                requiresAcademicData &&
+                currentCareer.isBlank()
+            ) {
+                "Indica la carrera actual."
+            } else {
+                null
+            },
+        currentSemester =
+            if (
+                requiresAcademicData &&
+                currentSemester.isBlank()
+            ) {
+                "Selecciona el semestre actual."
+            } else {
+                null
+            },
+        password =
+            when {
+                password.isBlank() ->
+                    "Ingresa una contraseña."
 
-private fun validateBirthDate(dateMillis: Long?): String? {
+                password.length < 8 ->
+                    "La contraseña debe tener mínimo 8 caracteres."
+
+                else -> null
+            },
+        confirmPassword =
+            when {
+                confirmPassword.isBlank() ->
+                    "Confirma tu contraseña."
+
+                password != confirmPassword ->
+                    "Las contraseñas no coinciden."
+
+                else -> null
+            },
+        dataConsent =
+            if (!dataConsent) {
+                "Debes confirmar que leíste el aviso " +
+                        "sobre el uso de tus datos."
+            } else {
+                null
+            },
+        termsAccepted =
+            if (!termsAccepted) {
+                "Debes aceptar políticas y términos."
+            } else {
+                null
+            },
+    )
+
+private fun validateBirthDate(
+    dateMillis: Long?,
+): String? {
     if (dateMillis == null) {
         return "Selecciona tu fecha de nacimiento."
     }
 
     val birthDate = normalizedCalendar(dateMillis)
-    val today = normalizedCalendar(System.currentTimeMillis())
+    val today = normalizedCalendar(
+        System.currentTimeMillis(),
+    )
 
     if (birthDate.after(today)) {
         return "La fecha de nacimiento no puede ser futura."
     }
 
-    val oldestAllowed = (today.clone() as Calendar).apply {
-        add(Calendar.YEAR, -120)
-    }
+    val oldestAllowed =
+        (today.clone() as Calendar).apply {
+            add(Calendar.YEAR, -120)
+        }
 
     if (birthDate.before(oldestAllowed)) {
         return "Ingresa una fecha de nacimiento válida."
     }
 
-    val adultLimit = (today.clone() as Calendar).apply {
-        add(Calendar.YEAR, -18)
-    }
+    val adultLimit =
+        (today.clone() as Calendar).apply {
+            add(Calendar.YEAR, -18)
+        }
 
     return if (birthDate.after(adultLimit)) {
         UNDER_AGE_MESSAGE
@@ -1502,36 +1565,57 @@ private fun showBirthDatePicker(
     selectedDateMillis: Long?,
     onDateSelected: (Long) -> Unit,
 ) {
-    val initialDate = selectedDateMillis?.let(::normalizedCalendar)
-        ?: normalizedCalendar(System.currentTimeMillis()).apply {
-            add(Calendar.YEAR, -18)
-        }
+    val initialDate =
+        selectedDateMillis
+            ?.let(::normalizedCalendar)
+            ?: normalizedCalendar(
+                System.currentTimeMillis(),
+            ).apply {
+                add(Calendar.YEAR, -18)
+            }
 
     val dialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
-            val selectedDate = Calendar.getInstance().apply {
-                clear()
-                set(year, month, dayOfMonth, 0, 0, 0)
-            }
-            onDateSelected(selectedDate.timeInMillis)
+            val selectedDate =
+                Calendar.getInstance().apply {
+                    clear()
+                    set(
+                        year,
+                        month,
+                        dayOfMonth,
+                        0,
+                        0,
+                        0,
+                    )
+                }
+
+            onDateSelected(
+                selectedDate.timeInMillis,
+            )
         },
         initialDate.get(Calendar.YEAR),
         initialDate.get(Calendar.MONTH),
         initialDate.get(Calendar.DAY_OF_MONTH),
     )
 
-    val today = normalizedCalendar(System.currentTimeMillis())
-    val oldestAllowed = (today.clone() as Calendar).apply {
-        add(Calendar.YEAR, -120)
-    }
+    val today = normalizedCalendar(
+        System.currentTimeMillis(),
+    )
+
+    val oldestAllowed =
+        (today.clone() as Calendar).apply {
+            add(Calendar.YEAR, -120)
+        }
 
     dialog.datePicker.maxDate = today.timeInMillis
     dialog.datePicker.minDate = oldestAllowed.timeInMillis
     dialog.show()
 }
 
-private fun normalizedCalendar(timeInMillis: Long): Calendar =
+private fun normalizedCalendar(
+    timeInMillis: Long,
+): Calendar =
     Calendar.getInstance().apply {
         this.timeInMillis = timeInMillis
         set(Calendar.HOUR_OF_DAY, 0)
@@ -1540,8 +1624,11 @@ private fun normalizedCalendar(timeInMillis: Long): Calendar =
         set(Calendar.MILLISECOND, 0)
     }
 
-private fun formatDate(timeInMillis: Long): String {
+private fun formatDate(
+    timeInMillis: Long,
+): String {
     val date = normalizedCalendar(timeInMillis)
+
     return String.format(
         Locale.getDefault(),
         "%02d/%02d/%04d",

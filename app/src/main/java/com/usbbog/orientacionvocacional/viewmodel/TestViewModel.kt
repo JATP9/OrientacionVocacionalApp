@@ -1,197 +1,177 @@
 package com.usbbog.orientacionvocacional.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.usbbog.orientacionvocacional.ui.mobile.QuestionOptionUi
 import com.usbbog.orientacionvocacional.ui.mobile.QuestionUi
 import com.usbbog.orientacionvocacional.ui.mobile.TestUiState
+import com.usbbog.orientacionvocacional.ui.mobile.VocationalArea
+import java.util.UUID
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class TestViewModel : ViewModel() {
 
-    private val questions = listOf(
-        QuestionUi(
-            id = "question_1",
-            statement = "Disfruto resolver problemas utilizando tecnología.",
-            options = likertOptions()
-        ),
-        QuestionUi(
-            id = "question_2",
-            statement = "Me interesa comprender el comportamiento y las emociones de las personas.",
-            options = likertOptions()
-        ),
-        QuestionUi(
-            id = "question_3",
-            statement = "Me siento cómodo organizando actividades y liderando grupos.",
-            options = likertOptions()
-        ),
-        QuestionUi(
-            id = "question_4",
-            statement = "Disfruto analizar datos, números y patrones.",
-            options = likertOptions()
-        ),
-        QuestionUi(
-            id = "question_5",
-            statement = "Me interesa crear, diseñar o expresar ideas de manera visual.",
-            options = likertOptions()
-        ),
-        QuestionUi(
-            id = "question_6",
-            statement = "Me gusta ayudar a otras personas a aprender y desarrollar sus habilidades.",
-            options = likertOptions()
-        ),
-        QuestionUi(
-            id = "question_7",
-            statement = "Me interesa investigar cómo funcionan las cosas.",
-            options = likertOptions()
-        ),
-        QuestionUi(
-            id = "question_8",
-            statement = "Prefiero actividades en las que pueda tomar decisiones y asumir responsabilidades.",
-            options = likertOptions()
-        )
-    )
+    private val questions = buildQuestions()
+    private var timerJob: Job? = null
 
-    private val _uiState = MutableStateFlow(
-        TestUiState(
-            questions = questions
-        )
-    )
+    private val _uiState = MutableStateFlow(TestUiState(questions = questions))
+    val uiState: StateFlow<TestUiState> = _uiState.asStateFlow()
 
-    val uiState: StateFlow<TestUiState> =
-        _uiState.asStateFlow()
+    fun startAttempt(audienceLabel: String = "Usuario interno") {
+        timerJob?.cancel()
+        _uiState.value = TestUiState(
+            attemptId = "attempt-${UUID.randomUUID()}",
+            startedAtMillis = System.currentTimeMillis(),
+            elapsedSeconds = 0,
+            isRunning = true,
+            versionLabel = "Versión v1.1",
+            attemptLabel = "Intento #00011",
+            audienceLabel = audienceLabel,
+            questions = questions,
+        )
+        startChronometer()
+    }
 
     fun selectOption(optionId: String) {
-        val currentState = _uiState.value
-        val question = currentState.currentQuestion ?: return
+        val state = _uiState.value
+        val question = state.currentQuestion ?: return
+        if (!state.isRunning) return
 
-        _uiState.value = currentState.copy(
-            answers = currentState.answers + (
-                    question.id to optionId
-                    ),
-            errorMessage = null
+        _uiState.value = state.copy(
+            answers = state.answers + (question.id to optionId),
+            errorMessage = null,
         )
     }
 
-    /**
-     * Devuelve true cuando se respondió la última pregunta.
-     */
+    /** Devuelve true cuando la prueba puede pasar a la revisión final. */
     fun nextQuestion(): Boolean {
-        val currentState =
-            _uiState.value
+        val state = _uiState.value
+        val question = state.currentQuestion ?: return false
 
-        val currentQuestion =
-            currentState.currentQuestion
-                ?: return false
-
-        val selectedOption =
-            currentState.answers[
-                currentQuestion.id
-            ]
-
-        if (selectedOption == null) {
-
-            _uiState.value =
-                currentState.copy(
-                    errorMessage =
-                        "Selecciona una respuesta antes de continuar."
-                )
-
+        if (!state.answers.containsKey(question.id)) {
+            _uiState.value = state.copy(
+                errorMessage = "Selecciona una respuesta antes de continuar.",
+            )
             return false
         }
 
-        if (currentState.isLastQuestion) {
-
-            val firstUnansweredIndex =
-                currentState.questions
-                    .indexOfFirst { question ->
-
-                        !currentState.answers
-                            .containsKey(question.id)
-                    }
-
-            if (firstUnansweredIndex != -1) {
-
-                _uiState.value =
-                    currentState.copy(
-                        currentQuestionIndex =
-                            firstUnansweredIndex,
-                        errorMessage =
-                            "Debes responder todas las preguntas antes de finalizar."
-                    )
-
+        if (state.isLastQuestion) {
+            val firstUnanswered = state.questions.indexOfFirst { !state.answers.containsKey(it.id) }
+            if (firstUnanswered >= 0) {
+                _uiState.value = state.copy(
+                    currentQuestionIndex = firstUnanswered,
+                    errorMessage = "Aún faltan respuestas. Te llevamos a la primera pregunta pendiente.",
+                )
                 return false
             }
-
             return true
         }
 
-        _uiState.value =
-            currentState.copy(
-                currentQuestionIndex =
-                    currentState.currentQuestionIndex + 1,
-                errorMessage = null
-            )
-
+        _uiState.value = state.copy(
+            currentQuestionIndex = state.currentQuestionIndex + 1,
+            errorMessage = null,
+        )
         return false
     }
 
     fun previousQuestion() {
-        val currentState = _uiState.value
-
-        if (currentState.currentQuestionIndex <= 0) {
-            return
-        }
-
-        _uiState.value = currentState.copy(
-            currentQuestionIndex =
-                currentState.currentQuestionIndex - 1,
-            errorMessage = null
+        val state = _uiState.value
+        if (state.currentQuestionIndex <= 0) return
+        _uiState.value = state.copy(
+            currentQuestionIndex = state.currentQuestionIndex - 1,
+            errorMessage = null,
         )
     }
 
     fun jumpToQuestion(index: Int) {
-        val currentState = _uiState.value
-
-        if (index !in currentState.questions.indices) {
-            return
-        }
-
-        _uiState.value = currentState.copy(
+        val state = _uiState.value
+        if (index !in state.questions.indices) return
+        _uiState.value = state.copy(
             currentQuestionIndex = index,
-            errorMessage = null
+            errorMessage = null,
         )
+    }
+
+    fun focusFirstUnanswered(): Boolean {
+        val state = _uiState.value
+        val firstUnanswered = state.questions.indexOfFirst { !state.answers.containsKey(it.id) }
+        if (firstUnanswered < 0) return false
+
+        _uiState.value = state.copy(
+            currentQuestionIndex = firstUnanswered,
+            errorMessage = "Completa esta pregunta antes de enviar la prueba.",
+        )
+        return true
+    }
+
+    fun stopAttempt() {
+        timerJob?.cancel()
+        timerJob = null
+        _uiState.value = _uiState.value.copy(isRunning = false)
     }
 
     fun resetTest() {
-        _uiState.value = TestUiState(
-            questions = questions
-        )
+        timerJob?.cancel()
+        timerJob = null
+        _uiState.value = TestUiState(questions = questions)
     }
 
-    private fun likertOptions(): List<QuestionOptionUi> {
-        return listOf(
-            QuestionOptionUi(
-                id = "1",
-                title = "Totalmente en desacuerdo"
-            ),
-            QuestionOptionUi(
-                id = "2",
-                title = "En desacuerdo"
-            ),
-            QuestionOptionUi(
-                id = "3",
-                title = "Ni de acuerdo ni en desacuerdo"
-            ),
-            QuestionOptionUi(
-                id = "4",
-                title = "De acuerdo"
-            ),
-            QuestionOptionUi(
-                id = "5",
-                title = "Totalmente de acuerdo"
-            )
-        )
+    private fun startChronometer() {
+        timerJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1_000)
+                val state = _uiState.value
+                if (!state.isRunning) break
+                _uiState.value = state.copy(elapsedSeconds = state.elapsedSeconds + 1)
+            }
+        }
     }
+
+    override fun onCleared() {
+        timerJob?.cancel()
+        super.onCleared()
+    }
+
+    private fun buildQuestions(): List<QuestionUi> {
+        val statements = listOf(
+            Triple("Disfruto resolver problemas utilizando tecnología.", "Razonamiento tecnológico", VocationalArea.Engineering),
+            Triple("Me interesa comprender cómo funcionan los sistemas y dispositivos.", "Pensamiento sistémico", VocationalArea.Engineering),
+            Triple("Me gusta analizar datos, números y patrones para encontrar soluciones.", "Análisis cuantitativo", VocationalArea.Engineering),
+            Triple("Me motiva crear herramientas digitales que faciliten tareas cotidianas.", "Creación tecnológica", VocationalArea.Engineering),
+            Triple("Disfruto acompañar a otras personas cuando necesitan apoyo.", "Servicio y cuidado", VocationalArea.Health),
+            Triple("Me interesa aprender sobre el cuerpo, la salud y el bienestar.", "Interés científico en salud", VocationalArea.Health),
+            Triple("Puedo mantener la calma y actuar con empatía ante situaciones difíciles.", "Empatía y autocontrol", VocationalArea.Health),
+            Triple("Me siento cómodo organizando actividades y coordinando equipos.", "Liderazgo", VocationalArea.Business),
+            Triple("Me interesa planear proyectos y tomar decisiones con información.", "Gestión", VocationalArea.Business),
+            Triple("Disfruto proponer mejoras para que una organización funcione mejor.", "Innovación organizacional", VocationalArea.Business),
+            Triple("Me interesa comprender el comportamiento y las emociones de las personas.", "Comprensión humana", VocationalArea.Social),
+            Triple("Me gusta escuchar diferentes puntos de vista y facilitar acuerdos.", "Comunicación social", VocationalArea.Social),
+            Triple("Disfruto enseñar y ayudar a otras personas a desarrollar sus habilidades.", "Acompañamiento educativo", VocationalArea.Social),
+            Triple("Me interesa crear, diseñar o expresar ideas de manera visual.", "Expresión creativa", VocationalArea.Arts),
+            Triple("Disfruto comunicar historias e ideas mediante distintos medios.", "Comunicación creativa", VocationalArea.Arts),
+        )
+
+        return statements.mapIndexed { index, (statement, dimension, area) ->
+            QuestionUi(
+                id = "question_${index + 1}",
+                statement = statement,
+                dimension = dimension,
+                area = area,
+                options = likertOptions(),
+            )
+        }
+    }
+
+    private fun likertOptions(): List<QuestionOptionUi> = listOf(
+        QuestionOptionUi("1", "Rara vez"),
+        QuestionOptionUi("2", "A veces"),
+        QuestionOptionUi("3", "A menudo"),
+        QuestionOptionUi("4", "Siempre"),
+    )
 }

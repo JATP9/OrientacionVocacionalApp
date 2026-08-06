@@ -48,6 +48,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.usbbog.orientacionvocacional.ui.components.UsbFooterLogo
+import com.usbbog.orientacionvocacional.ui.components.UsbHeaderLogo
 
 private val RecoverOrange = Color(0xFFEF7D00)
 private val RecoverBlue = Color(0xFF181E7B)
@@ -487,34 +489,9 @@ private fun RecoverInstitutionMark(
     darkText: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(RecoverOrange),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "USB",
-                color = RecoverWhite,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.ExtraBold,
-            )
-        }
-
-        Spacer(Modifier.width(7.dp))
-
-        Text(
-            text = "UNIVERSIDAD DE\nSAN BUENAVENTURA",
-            color = if (darkText) RecoverBlack else RecoverWhite,
-            fontSize = 7.2.sp,
-            lineHeight = 8.6.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-        )
+    if (darkText) {
+        UsbHeaderLogo(modifier = modifier.height(44.dp))
+    } else {
+        UsbFooterLogo(modifier = modifier.height(38.dp))
     }
 }

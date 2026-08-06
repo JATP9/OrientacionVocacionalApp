@@ -1,9 +1,7 @@
 package com.usbbog.orientacionvocacional.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +34,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -44,13 +41,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.usbbog.orientacionvocacional.ui.components.UsbFooterLogo
+import com.usbbog.orientacionvocacional.ui.components.UsbHeaderLogo
 
 private val LandingOrange = Color(0xFFEF7D00)
 private val LandingBlue = Color(0xFF181E7B)
 private val LandingBlack = Color(0xFF1C1C1C)
 private val LandingWhite = Color(0xFFFFFFFF)
 private val LandingSurface = Color(0xFFF1F1F2)
-private val LandingMuted = Color(0xFF65656A)
 
 private data class LandingStepItem(
     val number: Int,
@@ -68,7 +66,6 @@ private data class LandingStepItem(
 fun LandingWebScreenV2(
     onStartClick: () -> Unit,
     onLoginClick: () -> Unit,
-    onHelpClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val steps = listOf(
@@ -76,21 +73,23 @@ fun LandingWebScreenV2(
             number = 1,
             title = "Registro",
             description =
-                "Crea tu cuenta proporcionando información básica para personalizar tu experiencia",
+                "Crea tu cuenta proporcionando información básica " +
+                        "para personalizar tu experiencia",
         ),
         LandingStepItem(
             number = 2,
             title = "Prueba Vocacional",
             description =
-                "Responde 180 preguntas diseñadas para evaluar tus intereses, habilidades y " +
-                        "preferencias (estimado de duración 40 minutos).",
+                "Responde 180 preguntas diseñadas para evaluar tus " +
+                        "intereses, habilidades y preferencias " +
+                        "(estimado de duración 40 minutos).",
         ),
         LandingStepItem(
             number = 3,
             title = "Resultados",
             description =
-                "Obtén un análisis y opciones de carreras recomendadas de acuerdo con las " +
-                        "respuestas brindadas.",
+                "Obtén un análisis y opciones de carreras recomendadas " +
+                        "de acuerdo con las respuestas brindadas.",
         ),
     )
 
@@ -100,7 +99,6 @@ fun LandingWebScreenV2(
             .background(LandingWhite),
     ) {
         LandingTopBar(
-            onHelpClick = onHelpClick,
             onLoginClick = onLoginClick,
         )
 
@@ -110,11 +108,15 @@ fun LandingWebScreenV2(
                 .weight(1f),
         ) {
             item {
-                LandingHero(onStartClick = onStartClick)
+                LandingHero(
+                    onStartClick = onStartClick,
+                )
             }
 
             item {
-                LandingStepsSection(steps = steps)
+                LandingStepsSection(
+                    steps = steps,
+                )
             }
 
             item {
@@ -130,7 +132,6 @@ fun LandingWebScreenV2(
 
 @Composable
 private fun LandingTopBar(
-    onHelpClick: () -> Unit,
     onLoginClick: () -> Unit,
 ) {
     Row(
@@ -140,104 +141,40 @@ private fun LandingTopBar(
             .heightIn(min = 68.dp)
             .shadow(elevation = 4.dp)
             .background(LandingWhite)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(
+                horizontal = 12.dp,
+                vertical = 10.dp,
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
+        Box(
             modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
+            contentAlignment = Alignment.CenterStart,
         ) {
-            Box(
+            UsbHeaderLogo(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(LandingOrange),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "USB",
-                    color = LandingWhite,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                )
-            }
-
-            Spacer(Modifier.width(8.dp))
-
-            Column {
-                Text(
-                    text = "Universidad de San Buenaventura",
-                    color = LandingBlack,
-                    fontSize = 10.5.sp,
-                    lineHeight = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
-                Text(
-                    text = "Bogotá",
-                    color = LandingMuted,
-                    fontSize = 9.5.sp,
-                    lineHeight = 11.sp,
-                )
-            }
+                    .width(143.dp)
+                    .height(44.dp),
+            )
         }
 
-        Spacer(Modifier.width(6.dp))
+        Spacer(
+            modifier = Modifier.width(6.dp),
+        )
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(100.dp))
-                    .border(
-                        width = 1.dp,
-                        color = Color(0xFFBEBEBE),
-                        shape = RoundedCornerShape(100.dp),
-                    )
-                    .clickable(onClick = onHelpClick)
-                    .padding(horizontal = 10.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.size(21.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawCircle(
-                            color = LandingMuted,
-                            radius = size.minDimension / 2f - 0.75.dp.toPx(),
-                            style = Stroke(width = 1.5.dp.toPx()),
-                        )
-                    }
-                    Text(
-                        text = "?",
-                        color = LandingMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-
-                Spacer(Modifier.width(5.dp))
-
-                Text(
-                    text = "Ayuda",
-                    color = LandingMuted,
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-
             Box(
                 modifier = Modifier
                     .height(42.dp)
                     .clip(RoundedCornerShape(100.dp))
                     .background(LandingOrange)
-                    .clickable(onClick = onLoginClick)
+                    .clickable(
+                        onClick = onLoginClick,
+                    )
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -268,7 +205,10 @@ private fun LandingHero(
                     1.00f to LandingBlue,
                 ),
             )
-            .padding(horizontal = 22.dp, vertical = 42.dp),
+            .padding(
+                horizontal = 22.dp,
+                vertical = 42.dp,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -276,7 +216,9 @@ private fun LandingHero(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Descubre tu camino académico y profesional con mayor claridad",
+                text =
+                    "Descubre tu camino académico y profesional " +
+                            "con mayor claridad",
                 color = LandingWhite,
                 fontSize = 32.sp,
                 lineHeight = 42.sp,
@@ -284,21 +226,27 @@ private fun LandingHero(
                 textAlign = TextAlign.Center,
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(
+                modifier = Modifier.height(24.dp),
+            )
 
             Text(
                 text =
-                    "La plataforma de orientación vocacional de la Universidad de San " +
-                            "Buenaventura sede de Bogotá te ayuda a identificar intereses, habilidades " +
-                            "y afinidades profesionales mediante pruebas, resultados guiados y " +
-                            "recomendaciones académicas personalizadas.",
+                    "La plataforma de orientación vocacional de la " +
+                            "Universidad de San Buenaventura sede de Bogotá " +
+                            "te ayuda a identificar intereses, habilidades " +
+                            "y afinidades profesionales mediante pruebas, " +
+                            "resultados guiados y recomendaciones académicas " +
+                            "personalizadas.",
                 color = LandingWhite,
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
                 textAlign = TextAlign.Center,
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(
+                modifier = Modifier.height(32.dp),
+            )
 
             OutlinedButton(
                 onClick = onStartClick,
@@ -306,12 +254,18 @@ private fun LandingHero(
                     .width(250.dp)
                     .heightIn(min = 64.dp),
                 shape = RoundedCornerShape(40.dp),
-                border = BorderStroke(4.dp, LandingWhite),
+                border = BorderStroke(
+                    width = 4.dp,
+                    color = LandingWhite,
+                ),
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.Transparent,
                     contentColor = LandingWhite,
                 ),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                contentPadding = PaddingValues(
+                    horizontal = 20.dp,
+                    vertical = 10.dp,
+                ),
             ) {
                 Text(
                     text = "Iniciar prueba",
@@ -332,7 +286,10 @@ private fun LandingStepsSection(
         modifier = Modifier
             .fillMaxWidth()
             .background(LandingSurface)
-            .padding(horizontal = 18.dp, vertical = 40.dp),
+            .padding(
+                horizontal = 18.dp,
+                vertical = 40.dp,
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -345,12 +302,19 @@ private fun LandingStepsSection(
             textAlign = TextAlign.Center,
         )
 
-        Spacer(Modifier.height(30.dp))
+        Spacer(
+            modifier = Modifier.height(30.dp),
+        )
 
         steps.forEachIndexed { index, step ->
-            LandingStepCard(step = step)
+            LandingStepCard(
+                step = step,
+            )
+
             if (index < steps.lastIndex) {
-                Spacer(Modifier.height(24.dp))
+                Spacer(
+                    modifier = Modifier.height(24.dp),
+                )
             }
         }
     }
@@ -374,7 +338,9 @@ private fun LandingStepCard(
                 spotColor = Color.Black.copy(alpha = 0.06f),
             ),
         shape = shape,
-        colors = CardDefaults.cardColors(containerColor = LandingWhite),
+        colors = CardDefaults.cardColors(
+            containerColor = LandingWhite,
+        ),
     ) {
         Column(
             modifier = Modifier
@@ -396,7 +362,9 @@ private fun LandingStepCard(
                 )
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(
+                modifier = Modifier.height(18.dp),
+            )
 
             Text(
                 text = step.title,
@@ -406,10 +374,14 @@ private fun LandingStepCard(
                 fontWeight = FontWeight.Bold,
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp),
+            )
 
             Text(
-                text = highlightedDescription(step.description),
+                text = highlightedDescription(
+                    description = step.description,
+                ),
                 color = LandingBlack,
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
@@ -418,30 +390,48 @@ private fun LandingStepCard(
     }
 }
 
-private fun highlightedDescription(description: String) = buildAnnotatedString {
-    if (!description.contains("180")) {
-        append(description)
-        return@buildAnnotatedString
-    }
+private fun highlightedDescription(
+    description: String,
+) = buildAnnotatedString {
+    val highlightedParts = listOf(
+        "180",
+        "(estimado de duración 40 minutos).",
+    )
 
-    val firstHighlight = "180"
-    val secondHighlight = "(estimado de duración 40 minutos)."
-    val firstStart = description.indexOf(firstHighlight)
-    val secondStart = description.indexOf(secondHighlight)
+    var currentIndex = 0
 
-    append(description.substring(0, firstStart))
-    withStyle(SpanStyle(color = LandingOrange, fontWeight = FontWeight.Bold)) {
-        append(firstHighlight)
-    }
+    highlightedParts.forEach { highlightedPart ->
+        val startIndex = description.indexOf(
+            string = highlightedPart,
+            startIndex = currentIndex,
+        )
 
-    if (secondStart >= 0) {
-        append(description.substring(firstStart + firstHighlight.length, secondStart))
-        withStyle(SpanStyle(color = LandingOrange, fontWeight = FontWeight.Bold)) {
-            append(secondHighlight)
+        if (startIndex >= 0) {
+            append(
+                description.substring(
+                    startIndex = currentIndex,
+                    endIndex = startIndex,
+                ),
+            )
+
+            withStyle(
+                style = SpanStyle(
+                    color = LandingOrange,
+                    fontWeight = FontWeight.Bold,
+                ),
+            ) {
+                append(highlightedPart)
+            }
+
+            currentIndex =
+                startIndex + highlightedPart.length
         }
-        append(description.substring(secondStart + secondHighlight.length))
-    } else {
-        append(description.substring(firstStart + firstHighlight.length))
+    }
+
+    if (currentIndex < description.length) {
+        append(
+            description.substring(currentIndex),
+        )
     }
 }
 
@@ -451,11 +441,16 @@ private fun LandingAboutSection() {
         modifier = Modifier
             .fillMaxWidth()
             .background(LandingWhite)
-            .padding(horizontal = 22.dp, vertical = 58.dp),
+            .padding(
+                horizontal = 22.dp,
+                vertical = 58.dp,
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Universidad de San Buenaventura sede de Bogotá",
+            text =
+                "Universidad de San Buenaventura " +
+                        "sede de Bogotá",
             color = LandingBlack,
             fontSize = 28.sp,
             lineHeight = 38.sp,
@@ -463,14 +458,18 @@ private fun LandingAboutSection() {
             textAlign = TextAlign.Center,
         )
 
-        Spacer(Modifier.height(26.dp))
+        Spacer(
+            modifier = Modifier.height(26.dp),
+        )
 
         Text(
             text =
-                "Institución comprometida con la formación integral de profesionales competentes, " +
-                        "éticos y con sentido social. Nuestra prueba vocacional está respaldada por " +
-                        "metodologías científicas validadas que te ayudarán a tener una primera guía " +
-                        "para tu decisión de vida académica.",
+                "Institución comprometida con la formación integral " +
+                        "de profesionales competentes, éticos y con sentido " +
+                        "social. Nuestra prueba vocacional está respaldada " +
+                        "por metodologías científicas validadas que te " +
+                        "ayudarán a tener una primera guía para tu decisión " +
+                        "de vida académica.",
             modifier = Modifier.widthIn(max = 720.dp),
             color = Color(0xFF223058),
             fontSize = 16.sp,
@@ -482,20 +481,40 @@ private fun LandingAboutSection() {
 
 @Composable
 private fun LandingFooter() {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(LandingBlue)
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        contentAlignment = Alignment.Center,
+            .padding(
+                horizontal = 20.dp,
+                vertical = 18.dp,
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        UsbFooterLogo(
+            modifier = Modifier
+                .width(230.dp)
+                .height(46.dp),
+        )
+
+        Spacer(
+            modifier = Modifier.height(6.dp),
+        )
+
         Text(
             text =
-                "Copyright © 2026 Universidad de San Buenaventura, Sede Bogotá\n" +
-                        "Políticas de uso y privacidad | Términos y Condiciones\n" +
-                        "Institución de educación superior sujeta a la inspección y vigilancia del " +
-                        "Ministerio de Educación Nacional",
+                "Somos una institución educativa de la Comunidad " +
+                        "Franciscana Provincia de la Santa Fe de educación " +
+                        "superior con personería jurídica reconocida por el " +
+                        "Ministerio de Educación en Resolución 1326 del 25 " +
+                        "de marzo de 1975.\n" +
+                        "Copyright © 2026 Universidad de San Buenaventura, " +
+                        "Sede Bogotá | Políticas de uso y privacidad | " +
+                        "Términos y Condiciones\n" +
+                        "Institución de educación superior sujeta a la " +
+                        "inspección y vigilancia del Ministerio de " +
+                        "Educación Nacional",
             color = LandingWhite,
             fontSize = 10.5.sp,
             lineHeight = 15.sp,

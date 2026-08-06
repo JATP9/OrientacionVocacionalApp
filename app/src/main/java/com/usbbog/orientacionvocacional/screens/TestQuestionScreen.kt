@@ -14,11 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
@@ -47,6 +48,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.usbbog.orientacionvocacional.ui.components.UsbAppFooter
+import com.usbbog.orientacionvocacional.ui.components.UsbHeaderLogo
 import com.usbbog.orientacionvocacional.ui.mobile.QuestionUi
 
 private val SessionOrange = Color(0xFFEF7D00)
@@ -85,11 +90,10 @@ fun TestQuestionWebScreen(
     modifier: Modifier = Modifier,
 ) {
     var introOpen by rememberSaveable { mutableStateOf(true) }
-    var finishOpen by rememberSaveable { mutableStateOf(false) }
     var exitOpen by rememberSaveable { mutableStateOf(false) }
 
     val safeTotal = totalQuestions.coerceAtLeast(1)
-    val progress = ((questionIndex + 1f) / safeTotal).coerceIn(0f, 1f)
+    val progress = (answeredQuestionNumbers.size.toFloat() / safeTotal).coerceIn(0f, 1f)
     val progressPercent = (progress * 100).toInt()
     val isLastQuestion = questionIndex == totalQuestions - 1
 
@@ -139,8 +143,10 @@ fun TestQuestionWebScreen(
                     onSelectOption = onSelectOption,
                     onPreviousClick = onPreviousClick,
                     onNextClick = {
-                        if (isLastQuestion) {
-                            finishOpen = true
+                        val allQuestionsAnswered =
+                            answeredQuestionNumbers.size == totalQuestions && selectedOptionId != null
+                        if (isLastQuestion && allQuestionsAnswered) {
+                            onReviewClick()
                         } else {
                             onNextClick()
                         }
@@ -160,70 +166,12 @@ fun TestQuestionWebScreen(
             }
         }
 
-        SessionFooter()
+        UsbAppFooter()
     }
 
     if (introOpen) {
-        AlertDialog(
-            onDismissRequest = { introOpen = false },
-            title = {
-                Text(
-                    text = "Antes de iniciar la prueba",
-                    color = SessionBlack,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            text = {
-                Text(
-                    text = "Lee con atención cada pregunta y responde con sinceridad. No hay respuestas correctas o incorrectas: el objetivo es identificar tus afinidades de manera clara.",
-                    color = SessionMuted,
-                    lineHeight = 21.sp,
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { introOpen = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = SessionOrange),
-                ) {
-                    Text("Comenzar")
-                }
-            },
-        )
-    }
-
-    if (finishOpen) {
-        AlertDialog(
-            onDismissRequest = { finishOpen = false },
-            title = {
-                Text(
-                    text = "Revisa tus respuestas",
-                    color = SessionBlack,
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            text = {
-                Text(
-                    text = "Antes de calcular los resultados podrás comprobar cuáles preguntas están respondidas y editar cualquier respuesta.",
-                    color = SessionMuted,
-                    lineHeight = 21.sp,
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        finishOpen = false
-                        onReviewClick()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = SessionBlue),
-                ) {
-                    Text("Revisar respuestas")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { finishOpen = false }) {
-                    Text("Seguir respondiendo", color = SessionBlue)
-                }
-            },
+        BeforeTestDialog(
+            onStartClick = { introOpen = false },
         )
     }
 
@@ -265,6 +213,113 @@ fun TestQuestionWebScreen(
 }
 
 @Composable
+private fun BeforeTestDialog(
+    onStartClick: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .widthIn(max = 360.dp),
+            shape = RoundedCornerShape(18.dp),
+            color = SessionWhite,
+            shadowElevation = 18.dp,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(84.dp)
+                        .background(SessionOrange),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(SessionWhite),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "!",
+                            color = SessionOrange,
+                            fontSize = 30.sp,
+                            lineHeight = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = 22.dp,
+                            top = 20.dp,
+                            end = 22.dp,
+                            bottom = 20.dp,
+                        ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "Antes de iniciar la prueba",
+                        color = SessionBlack,
+                        fontSize = 20.sp,
+                        lineHeight = 25.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Lee con atención cada pregunta y responde con sinceridad. " +
+                                "No hay respuestas correctas o incorrectas: el objetivo es " +
+                                "identificar tus afinidades de manera clara.",
+                        color = SessionMuted,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = onStartClick,
+                        modifier = Modifier
+                            .widthIn(min = 166.dp)
+                            .height(46.dp),
+                        shape = RoundedCornerShape(50.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SessionOrange,
+                            contentColor = SessionWhite,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 30.dp),
+                    ) {
+                        Text(
+                            text = "Comenzar",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SessionHeader(
     audienceLabel: String,
     versionLabel: String,
@@ -278,6 +333,12 @@ private fun SessionHeader(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
+        UsbHeaderLogo(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(42.dp),
+        )
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -368,7 +429,7 @@ private fun SessionStatusCard(remainingTime: String) {
         ) {
             Column {
                 Text(
-                    text = "Tiempo restante",
+                    text = "Tiempo transcurrido",
                     color = SessionMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -482,16 +543,6 @@ private fun QuestionCard(
                 ),
             )
 
-            if (question.helperText.isNotBlank()) {
-                Spacer(Modifier.height(9.dp))
-                Text(
-                    text = question.helperText,
-                    color = SessionMuted,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                )
-            }
-
             Spacer(Modifier.height(20.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
@@ -501,27 +552,28 @@ private fun QuestionCard(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 64.dp)
                             .clickable { onSelectOption(option.id) },
-                        shape = RoundedCornerShape(17.dp),
+                        shape = RoundedCornerShape(18.dp),
                         color = if (selected) SessionOrangeSoft else SessionWhite,
                         border = BorderStroke(
                             width = if (selected) 2.dp else 1.dp,
-                            color = if (selected) SessionOrange else SessionBorder,
+                            color = if (selected) SessionOrange else Color(0xFFC8C8CC),
                         ),
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 15.dp),
+                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 17.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(if (selected) SessionOrange else SessionWhite)
                                     .border(
                                         width = 2.dp,
                                         color = if (selected) SessionOrange else Color(0xFFB8B8BE),
-                                        shape = RoundedCornerShape(6.dp),
+                                        shape = RoundedCornerShape(8.dp),
                                     ),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -537,24 +589,14 @@ private fun QuestionCard(
 
                             Spacer(Modifier.width(12.dp))
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = option.title,
-                                    color = SessionBlack,
-                                    fontSize = 15.sp,
-                                    lineHeight = 20.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                if (option.description.isNotBlank()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = option.description,
-                                        color = SessionMuted,
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp,
-                                    )
-                                }
-                            }
+                            Text(
+                                text = option.title,
+                                modifier = Modifier.weight(1f),
+                                color = if (selected) SessionBlack else Color(0xFF6F6F73),
+                                fontSize = 17.sp,
+                                lineHeight = 22.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
                         }
                     }
                 }
@@ -599,7 +641,7 @@ private fun QuestionCard(
                     onClick = onNextClick,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SessionBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = SessionOrange),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 13.dp),
                 ) {
                     Text(
@@ -706,26 +748,5 @@ private fun QuestionPagination(
                 lineHeight = 16.sp,
             )
         }
-    }
-}
-
-@Composable
-private fun SessionFooter() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(SessionBlue)
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "UNIVERSIDAD DE SAN BUENAVENTURA - BOGOTÁ",
-            color = SessionWhite,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp,
-            textAlign = TextAlign.Center,
-        )
     }
 }

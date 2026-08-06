@@ -2,6 +2,7 @@ package com.usbbog.orientacionvocacional.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.usbbog.orientacionvocacional.ui.mobile.LoginUiState
+import com.usbbog.orientacionvocacional.ui.mobile.UserRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,7 +38,8 @@ class LoginViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(
             email = email,
             password = "",
-            errorMessage = null
+            errorMessage = null,
+            authenticatedRole = null,
         )
     }
 
@@ -85,9 +87,16 @@ class LoginViewModel : ViewModel() {
             }
 
             else -> {
+                val role = if (email.equals(ADMIN_DEMO_EMAIL, ignoreCase = true)) {
+                    UserRole.Admin
+                } else {
+                    UserRole.Student
+                }
+
                 _uiState.value = currentState.copy(
                     email = email,
-                    errorMessage = null
+                    errorMessage = null,
+                    authenticatedRole = role,
                 )
 
                 true
@@ -133,8 +142,12 @@ class LoginViewModel : ViewModel() {
             password = "",
             rememberMe = currentState.rememberMe,
             isLoading = false,
-            errorMessage = null
+            errorMessage = null,
+            authenticatedRole = null,
         )
     }
-}
 
+    companion object {
+        const val ADMIN_DEMO_EMAIL = "admin@usb.edu.co"
+    }
+}

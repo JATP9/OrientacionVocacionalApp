@@ -13,10 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -40,6 +40,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.usbbog.orientacionvocacional.ui.components.UsbAppFooter
+import com.usbbog.orientacionvocacional.ui.components.UsbHeaderLogo
 import com.usbbog.orientacionvocacional.ui.mobile.QuestionUi
 
 private val ReviewOrange = Color(0xFFEF7D00)
@@ -160,7 +162,7 @@ fun TestReviewWebScreen(
             }
         }
 
-        ReviewFooter()
+        UsbAppFooter()
     }
 }
 
@@ -183,44 +185,17 @@ private fun ReviewHeader() {
                 ),
         )
 
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            contentAlignment = Alignment.CenterStart,
         ) {
-            Box(
+            UsbHeaderLogo(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(ReviewOrange),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "USB",
-                    color = ReviewWhite,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-
-            Spacer(Modifier.size(10.dp))
-
-            Column {
-                Text(
-                    text = "UNIVERSIDAD DE SAN BUENAVENTURA",
-                    color = ReviewBlue,
-                    fontSize = 10.sp,
-                    lineHeight = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = "Orientación vocacional - Bogotá",
-                    color = ReviewMuted,
-                    fontSize = 9.sp,
-                    lineHeight = 12.sp,
-                )
-            }
+                    .fillMaxWidth()
+                    .height(44.dp),
+            )
         }
     }
 }
@@ -486,7 +461,8 @@ private fun ConfirmationCard(
             if (!isComplete) {
                 Spacer(Modifier.height(13.dp))
                 Text(
-                    text = "Completa las $unansweredCount preguntas pendientes para habilitar el envío.",
+                    text = "Completa las $unansweredCount preguntas pendientes antes de enviar. " +
+                            "Puedes ir directamente a la primera.",
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
@@ -524,7 +500,7 @@ private fun ConfirmationCard(
             Button(
                 onClick = onSubmitClick,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = isComplete && !isSubmitting,
+                enabled = !isSubmitting,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ReviewOrange,
@@ -542,7 +518,11 @@ private fun ConfirmationCard(
                     Spacer(Modifier.size(9.dp))
                 }
                 Text(
-                    text = if (isSubmitting) "Enviando..." else "Finalizar prueba",
+                    text = when {
+                        isSubmitting -> "Enviando..."
+                        isComplete -> "Finalizar prueba"
+                        else -> "Ir a la primera pendiente"
+                    },
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -588,21 +568,4 @@ private fun ReviewBullet(text: String) {
             lineHeight = 19.sp,
         )
     }
-}
-
-@Composable
-private fun ReviewFooter() {
-    Text(
-        text = "Universidad de San Buenaventura, Sede Bogotá",
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(ReviewBlue)
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 11.dp),
-        color = ReviewWhite.copy(alpha = 0.82f),
-        fontSize = 9.sp,
-        lineHeight = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.Center,
-    )
 }

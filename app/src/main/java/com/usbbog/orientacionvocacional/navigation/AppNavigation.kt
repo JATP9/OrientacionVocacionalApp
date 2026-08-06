@@ -1,8 +1,5 @@
 package com.usbbog.orientacionvocacional.navigation
 
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -10,19 +7,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.usbbog.orientacionvocacional.screens.AdminWebAccessNoticeScreen
 import com.usbbog.orientacionvocacional.screens.ForgotPasswordScreen
 import com.usbbog.orientacionvocacional.screens.LandingWebScreenV2
 import com.usbbog.orientacionvocacional.screens.LoginScreen
+import com.usbbog.orientacionvocacional.screens.ProfileScreen
 import com.usbbog.orientacionvocacional.screens.RegisterWebScreenV2
+import com.usbbog.orientacionvocacional.screens.ResultsScreen
 import com.usbbog.orientacionvocacional.screens.TestIntroWebScreenV2
 import com.usbbog.orientacionvocacional.screens.TestQuestionWebScreen
 import com.usbbog.orientacionvocacional.screens.TestReviewWebScreen
-import com.usbbog.orientacionvocacional.ui.mobile.ProfileMobileScreen
-import com.usbbog.orientacionvocacional.ui.mobile.ResultsMobileScreen
+import com.usbbog.orientacionvocacional.ui.mobile.UserRole
+import com.usbbog.orientacionvocacional.util.ResultsPdfExporter
 import com.usbbog.orientacionvocacional.viewmodel.ForgotPasswordViewModel
 import com.usbbog.orientacionvocacional.viewmodel.LoginViewModel
 import com.usbbog.orientacionvocacional.viewmodel.ProfileViewModel
@@ -40,11 +41,13 @@ private object Routes {
     const val TEST_REVIEW = "test_review"
     const val RESULTS = "results"
     const val PROFILE = "profile"
+    const val ADMIN = "admin"
 }
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     val loginViewModel: LoginViewModel = viewModel()
     val forgotPasswordViewModel: ForgotPasswordViewModel = viewModel()
@@ -60,48 +63,28 @@ fun AppNavigation() {
     val resultsState by resultsViewModel.uiState.collectAsState()
     val profileState by profileViewModel.uiState.collectAsState()
 
+    fun logout() {
+        loginViewModel.clearSession()
+        forgotPasswordViewModel.reset()
+        registerViewModel.resetForm()
+        testViewModel.resetTest()
+        resultsViewModel.clearResults()
+        profileViewModel.clearProfile()
+        navController.navigate(Routes.LANDING) {
+            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+            launchSingleTop = true
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Routes.LANDING,
     ) {
         composable(Routes.LANDING) {
-            var showHelpDialog by rememberSaveable { mutableStateOf(false) }
-
             LandingWebScreenV2(
-                onStartClick = {
-                    navController.navigate(Routes.LOGIN) {
-                        launchSingleTop = true
-                    }
-                },
-                onLoginClick = {
-                    navController.navigate(Routes.LOGIN) {
-                        launchSingleTop = true
-                    }
-                },
-                onHelpClick = {
-                    showHelpDialog = true
-                },
+                onStartClick = { navController.navigate(Routes.LOGIN) { launchSingleTop = true } },
+                onLoginClick = { navController.navigate(Routes.LOGIN) { launchSingleTop = true } },
             )
-
-            if (showHelpDialog) {
-                AlertDialog(
-                    onDismissRequest = { showHelpDialog = false },
-                    title = {
-                        Text(text = "Ayuda")
-                    },
-                    text = {
-                        Text(
-                            text = "Para realizar la prueba debes crear una cuenta o iniciar sesión. " +
-                                    "Después podrás responder el cuestionario y consultar tus resultados vocacionales.",
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showHelpDialog = false }) {
-                            Text(text = "Entendido")
-                        }
-                    },
-                )
-            }
         }
 
         composable(Routes.LOGIN) {
@@ -115,32 +98,26 @@ fun AppNavigation() {
                 onPasswordChange = loginViewModel::onPasswordChange,
                 onRememberChange = loginViewModel::onRememberChange,
                 onLoginClick = {
-                    val credentialsAreValid = loginViewModel.login()
-
-                    if (credentialsAreValid) {
-                        profileViewModel.loadFromLogin(email = loginState.email)
-
-                        navController.navigate(Routes.BEFORE_TEST) {
-                            popUpTo(Routes.LOGIN) {
-                                inclusive = true
-                            }
+                    if (loginViewModel.login()) {
+                        val currentSession = loginViewModel.uiState.value
+                        val role = currentSession.authenticatedRole ?: UserRole.Student
+                        profileViewModel.loadFromLogin(currentSession.email, role)
+                        navController.navigate(
+                            if (role == UserRole.Admin) Routes.ADMIN else Routes.BEFORE_TEST,
+                        ) {
+                            popUpTo(Routes.LOGIN) { inclusive = true }
                             launchSingleTop = true
                         }
                     }
                 },
                 onRegisterClick = {
                     loginViewModel.clearError()
-                    navController.navigate(Routes.REGISTER) {
-                        launchSingleTop = true
-                    }
+                    navController.navigate(Routes.REGISTER) { launchSingleTop = true }
                 },
                 onForgotPasswordClick = {
                     loginViewModel.clearError()
                     forgotPasswordViewModel.prefillEmail(loginState.email)
-
-                    navController.navigate(Routes.FORGOT_PASSWORD) {
-                        launchSingleTop = true
-                    }
+                    navController.navigate(Routes.FORGOT_PASSWORD) { launchSingleTop = true }
                 },
             )
         }
@@ -158,11 +135,8 @@ fun AppNavigation() {
                 onRecoverClick = forgotPasswordViewModel::recoverPassword,
                 onBackToLoginClick = {
                     forgotPasswordViewModel.reset()
-
                     if (!navController.popBackStack()) {
-                        navController.navigate(Routes.LOGIN) {
-                            launchSingleTop = true
-                        }
+                        navController.navigate(Routes.LOGIN) { launchSingleTop = true }
                     }
                 },
             )
@@ -171,36 +145,32 @@ fun AppNavigation() {
         composable(Routes.REGISTER) {
             RegisterWebScreenV2(
                 state = registerState,
-                onFieldChange = { field, value ->
-                    registerViewModel.onFieldChange(
-                        field = field,
-                        value = value,
-                    )
-                },
+                onFieldChange = registerViewModel::onFieldChange,
+                onBirthDateChange = registerViewModel::onBirthDateChange,
+                onBelongsToUniversityChange = registerViewModel::onBelongsToUniversityChange,
+                onActiveStudentChange = registerViewModel::onActiveStudentChange,
                 onAcceptTermsChange = registerViewModel::onAcceptTermsChange,
                 onAuthorizeDataChange = registerViewModel::onAuthorizeDataChange,
                 onRegisterClick = {
-                    val registrationIsValid = registerViewModel.register()
-
-                    if (registrationIsValid) {
-                        val registeredEmail = registerState.email.trim()
-
-                        profileViewModel.loadFromRegistration(registerState = registerState)
-                        loginViewModel.prefillEmail(registeredEmail)
+                    if (registerViewModel.register()) {
+                        val registeredUser = registerViewModel.uiState.value
+                        profileViewModel.loadFromRegistration(registeredUser)
+                        loginViewModel.prefillEmail(registeredUser.email)
                         registerViewModel.resetForm()
 
-                        navController.popBackStack(
-                            route = Routes.LOGIN,
-                            inclusive = false,
-                        )
+                        if (!navController.popBackStack(Routes.LOGIN, inclusive = false)) {
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(Routes.REGISTER) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
                     }
                 },
                 onBackToLoginClick = {
                     registerViewModel.resetForm()
-                    navController.popBackStack(
-                        route = Routes.LOGIN,
-                        inclusive = false,
-                    )
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Routes.LOGIN) { launchSingleTop = true }
+                    }
                 },
             )
         }
@@ -210,28 +180,25 @@ fun AppNavigation() {
                 userName = profileState.fullName,
                 errorMessage = testState.errorMessage,
                 onStartClick = {
-                    testViewModel.resetTest()
-                    navController.navigate(Routes.TEST) {
-                        launchSingleTop = true
-                    }
+                    testViewModel.startAttempt(
+                        audienceLabel = if (profileState.belongsToUniversity) {
+                            "Usuario interno"
+                        } else {
+                            "Usuario externo"
+                        },
+                    )
+                    navController.navigate(Routes.TEST) { launchSingleTop = true }
                 },
-                onProfileClick = {
-                    navController.navigate(Routes.PROFILE) {
-                        launchSingleTop = true
-                    }
-                },
+                onProfileClick = { navController.navigate(Routes.PROFILE) { launchSingleTop = true } },
             )
         }
 
         composable(Routes.TEST) {
             val currentQuestion = testState.currentQuestion
-
-            if (currentQuestion == null) {
+            if (currentQuestion == null || testState.attemptId == null) {
                 LaunchedEffect(Unit) {
                     navController.navigate(Routes.BEFORE_TEST) {
-                        popUpTo(Routes.TEST) {
-                            inclusive = true
-                        }
+                        popUpTo(Routes.TEST) { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -247,42 +214,34 @@ fun AppNavigation() {
                     onSelectOption = testViewModel::selectOption,
                     onPreviousClick = testViewModel::previousQuestion,
                     onNextClick = {
-                        val testFinished = testViewModel.nextQuestion()
-
-                        if (testFinished) {
-                            navController.navigate(Routes.TEST_REVIEW) {
-                                launchSingleTop = true
-                            }
+                        if (testViewModel.nextQuestion()) {
+                            navController.navigate(Routes.TEST_REVIEW) { launchSingleTop = true }
                         }
                     },
                     onReviewClick = {
-                        navController.navigate(Routes.TEST_REVIEW) {
-                            launchSingleTop = true
-                        }
+                        navController.navigate(Routes.TEST_REVIEW) { launchSingleTop = true }
                     },
                     onQuestionJump = testViewModel::jumpToQuestion,
                     onExitTest = {
                         testViewModel.resetTest()
                         navController.navigate(Routes.BEFORE_TEST) {
-                            popUpTo(Routes.TEST) {
-                                inclusive = true
-                            }
+                            popUpTo(Routes.TEST) { inclusive = true }
                             launchSingleTop = true
                         }
                     },
+                    audienceLabel = testState.audienceLabel,
+                    versionLabel = testState.versionLabel,
+                    attemptLabel = testState.attemptLabel,
                 )
             }
         }
 
         composable(Routes.TEST_REVIEW) {
             var isSubmitting by rememberSaveable { mutableStateOf(false) }
-
-            if (testState.questions.isEmpty()) {
+            if (testState.questions.isEmpty() || testState.attemptId == null) {
                 LaunchedEffect(Unit) {
                     navController.navigate(Routes.BEFORE_TEST) {
-                        popUpTo(Routes.TEST_REVIEW) {
-                            inclusive = true
-                        }
+                        popUpTo(Routes.TEST_REVIEW) { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -294,42 +253,32 @@ fun AppNavigation() {
                     errorMessage = testState.errorMessage,
                     onEditQuestion = { index ->
                         testViewModel.jumpToQuestion(index)
-
                         if (!navController.popBackStack()) {
-                            navController.navigate(Routes.TEST) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Routes.TEST) { launchSingleTop = true }
                         }
                     },
                     onSubmitClick = {
-                        val allQuestionsAnswered = testState.questions.indices.all { index ->
-                            index + 1 in testState.answeredQuestionNumbers
-                        }
-
-                        if (allQuestionsAnswered && !isSubmitting) {
+                        if (testState.unansweredQuestionNumbers.isNotEmpty()) {
+                            testViewModel.focusFirstUnanswered()
+                            if (!navController.popBackStack()) {
+                                navController.navigate(Routes.TEST) { launchSingleTop = true }
+                            }
+                        } else if (!isSubmitting) {
                             isSubmitting = true
-
-                            /*
-                             * Cuando exista el endpoint movil, la llamada submitAttempt
-                             * debe ejecutarse aqui antes de generar y abrir resultados.
-                             */
+                            testViewModel.stopAttempt()
                             resultsViewModel.generateResults(
                                 answers = testState.answers,
+                                questions = testState.questions,
                             )
-
                             navController.navigate(Routes.RESULTS) {
-                                popUpTo(Routes.TEST) {
-                                    inclusive = true
-                                }
+                                popUpTo(Routes.TEST) { inclusive = true }
                                 launchSingleTop = true
                             }
                         }
                     },
                     onBackToQuestionsClick = {
                         if (!navController.popBackStack()) {
-                            navController.navigate(Routes.TEST) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(Routes.TEST) { launchSingleTop = true }
                         }
                     },
                 )
@@ -337,49 +286,61 @@ fun AppNavigation() {
         }
 
         composable(Routes.RESULTS) {
-            ResultsMobileScreen(
+            var isDownloading by rememberSaveable { mutableStateOf(false) }
+            var downloadStatus by rememberSaveable { mutableStateOf<String?>(null) }
+            ResultsScreen(
                 userName = profileState.fullName,
                 mainArea = resultsState.mainArea,
                 summary = resultsState.summary,
                 scores = resultsState.scores,
                 careers = resultsState.careers,
                 generatedAt = resultsState.generatedAt,
+                isDownloading = isDownloading,
+                downloadStatus = downloadStatus,
                 onDownloadClick = {
-                    // La generacion del PDF se implementara despues.
-                },
-                onProfileClick = {
-                    navController.navigate(Routes.PROFILE) {
-                        launchSingleTop = true
+                    isDownloading = true
+                    downloadStatus = runCatching {
+                        val file = ResultsPdfExporter.createAndShare(
+                            context = context,
+                            userName = profileState.fullName,
+                            result = resultsState,
+                        )
+                        "Informe creado: ${file.name}"
+                    }.getOrElse {
+                        "No fue posible crear el informe PDF."
                     }
+                    isDownloading = false
                 },
+                onProfileClick = { navController.navigate(Routes.PROFILE) { launchSingleTop = true } },
             )
         }
 
         composable(Routes.PROFILE) {
-            ProfileMobileScreen(
+            val isAdministrator = loginState.authenticatedRole == UserRole.Admin
+            ProfileScreen(
                 state = profileState,
-                onEditClick = {
-                    // La edicion del perfil se implementara despues.
-                },
-                onLogoutClick = {
-                    loginViewModel.clearSession()
-                    forgotPasswordViewModel.reset()
-                    registerViewModel.resetForm()
-                    testViewModel.resetTest()
-                    resultsViewModel.clearResults()
-                    profileViewModel.clearProfile()
+                isAdministrator = isAdministrator,
+                onSave = profileViewModel::updateProfile,
+                onAdminClick = { navController.navigate(Routes.ADMIN) { launchSingleTop = true } },
+                onLogoutClick = ::logout,
+                onBackClick = { navController.popBackStack() },
+            )
+        }
 
-                    navController.navigate(Routes.LANDING) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            inclusive = true
-                        }
+        composable(Routes.ADMIN) {
+            if (loginState.authenticatedRole != UserRole.Admin) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.ADMIN) { inclusive = true }
                         launchSingleTop = true
                     }
-                },
-                onBackClick = {
-                    navController.popBackStack()
-                },
-            )
+                }
+            } else {
+                AdminWebAccessNoticeScreen(
+                    administratorName = profileState.fullName,
+                    onAcknowledge = ::logout,
+                )
+            }
         }
     }
 }
