@@ -27,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -75,20 +74,12 @@ private data class TestGuideCard(
 fun TestIntroWebScreenV2(
     userName: String,
     errorMessage: String?,
+    isLoading: Boolean,
     onStartClick: () -> Unit,
+    onResultsClick: () -> Unit,
     onProfileClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var startRequested by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    LaunchedEffect(errorMessage) {
-        if (!errorMessage.isNullOrBlank()) {
-            startRequested = false
-        }
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -114,11 +105,11 @@ fun TestIntroWebScreenV2(
                     contentAlignment = Alignment.TopCenter,
                 ) {
                     TestIntroShell(
-                        isLoading = startRequested,
+                        isLoading = isLoading,
                         errorMessage = errorMessage,
+                        onResultsClick = onResultsClick,
                         onStartClick = {
-                            if (!startRequested) {
-                                startRequested = true
+                            if (!isLoading) {
                                 onStartClick()
                             }
                         },
@@ -138,6 +129,7 @@ fun TestIntroWebScreenV2(
 private fun TestIntroShell(
     isLoading: Boolean,
     errorMessage: String?,
+    onResultsClick: () -> Unit,
     onStartClick: () -> Unit,
 ) {
     val shellShape = RoundedCornerShape(32.dp)
@@ -210,6 +202,7 @@ private fun TestIntroShell(
                         TestIntroCopy(
                             isLoading = isLoading,
                             errorMessage = errorMessage,
+                            onResultsClick = onResultsClick,
                             onStartClick = onStartClick,
                             modifier = Modifier.weight(0.9f),
                         )
@@ -227,6 +220,7 @@ private fun TestIntroShell(
                         TestIntroCopy(
                             isLoading = isLoading,
                             errorMessage = errorMessage,
+                            onResultsClick = onResultsClick,
                             onStartClick = onStartClick,
                         )
 
@@ -246,6 +240,7 @@ private fun TestIntroShell(
 private fun TestIntroCopy(
     isLoading: Boolean,
     errorMessage: String?,
+    onResultsClick: () -> Unit,
     onStartClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -323,16 +318,29 @@ private fun TestIntroCopy(
             modifier = Modifier.height(22.dp),
         )
 
-        IntroStartButton(
-            text = if (isLoading) {
-                "Preparando prueba..."
-            } else {
-                "Iniciar prueba"
-            },
-            enabled = !isLoading,
-            loading = isLoading,
-            onClick = onStartClick,
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            IntroStartButton(
+                text = if (isLoading) {
+                    "Preparando prueba..."
+                } else {
+                    "Iniciar prueba"
+                },
+                enabled = !isLoading,
+                loading = isLoading,
+                onClick = onStartClick,
+            )
+
+            IntroStartButton(
+                text = "Mis resultados",
+                enabled = true,
+                loading = false,
+                onClick = onResultsClick,
+            )
+        }
     }
 }
 

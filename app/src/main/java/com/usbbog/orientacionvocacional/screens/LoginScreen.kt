@@ -73,12 +73,12 @@ private val WebBorder = Color(0xFFD8D6D1)
  */
 @Composable
 fun LoginScreen(
-    email: String,
+    identifier: String,
     password: String,
     rememberMe: Boolean,
     isLoading: Boolean,
     errorMessage: String?,
-    onEmailChange: (String) -> Unit,
+    onIdentifierChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onRememberChange: (Boolean) -> Unit,
     onLoginClick: () -> Unit,
@@ -124,12 +124,12 @@ fun LoginScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 WebLoginCard(
-                    email = email,
+                    identifier = identifier,
                     password = password,
                     rememberMe = rememberMe,
                     isLoading = isLoading,
                     errorMessage = errorMessage,
-                    onEmailChange = onEmailChange,
+                    onIdentifierChange = onIdentifierChange,
                     onPasswordChange = onPasswordChange,
                     onRememberChange = onRememberChange,
                     onLoginClick = onLoginClick,
@@ -145,12 +145,12 @@ fun LoginScreen(
 
 @Composable
 private fun WebLoginCard(
-    email: String,
+    identifier: String,
     password: String,
     rememberMe: Boolean,
     isLoading: Boolean,
     errorMessage: String?,
-    onEmailChange: (String) -> Unit,
+    onIdentifierChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onRememberChange: (Boolean) -> Unit,
     onLoginClick: () -> Unit,
@@ -243,11 +243,11 @@ private fun WebLoginCard(
                     ),
             ) {
                 WebLoginField(
-                    value = email,
-                    onValueChange = onEmailChange,
-                    label = "Correo",
-                    placeholder = "usuario@example.com",
-                    keyboardType = KeyboardType.Email,
+                    value = identifier,
+                    onValueChange = onIdentifierChange,
+                    label = "Correo o nombre de usuario",
+                    placeholder = "Ingresa tu correo o nombre de usuario",
+                    keyboardType = KeyboardType.Text,
                     enabled = !isLoading,
                 )
 
@@ -453,9 +453,7 @@ private fun WebLoginCard(
                 )
 
                 Text(
-                    text =
-                        "Demo administrador: admin@usb.edu.co · " +
-                                "contraseña de 6+ caracteres",
+                    text = "Ingresa con tu correo o nombre de usuario y contraseña.",
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(

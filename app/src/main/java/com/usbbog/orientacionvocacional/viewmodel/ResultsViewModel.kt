@@ -1,152 +1,216 @@
 package com.usbbog.orientacionvocacional.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.usbbog.orientacionvocacional.data.remote.ApiException
+import com.usbbog.orientacionvocacional.data.remote.TestAnswerDto
+import com.usbbog.orientacionvocacional.data.remote.TestResultResponseDto
+import com.usbbog.orientacionvocacional.data.remote.VocationalRepository
 import com.usbbog.orientacionvocacional.ui.mobile.CareerResultUi
 import com.usbbog.orientacionvocacional.ui.mobile.QuestionUi
+import com.usbbog.orientacionvocacional.ui.mobile.ResultHistoryItemUi
 import com.usbbog.orientacionvocacional.ui.mobile.ResultScoreUi
+import com.usbbog.orientacionvocacional.ui.mobile.ResultsHistoryUiState
 import com.usbbog.orientacionvocacional.ui.mobile.ResultsUiState
-import com.usbbog.orientacionvocacional.ui.mobile.VocationalArea
+import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
-import java.util.UUID
-import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class ResultsViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResultsUiState())
     val uiState: StateFlow<ResultsUiState> = _uiState.asStateFlow()
 
-    private val areaDescriptions = mapOf(
-        VocationalArea.Engineering.label to
-            "Presentas afinidad por el razonamiento lógico, la tecnología y la creación de soluciones.",
-        VocationalArea.Health.label to
-            "Presentas interés por el cuidado, el bienestar y el acompañamiento de otras personas.",
-        VocationalArea.Business.label to
-            "Presentas fortalezas para organizar, liderar, planear y tomar decisiones.",
-        VocationalArea.Social.label to
-            "Presentas interés por comprender a las personas, comunicarte y aportar a su desarrollo.",
-        VocationalArea.Arts.label to
-            "Presentas afinidad por la creatividad, el diseño y la comunicación de ideas.",
-    )
+    private val _historyState = MutableStateFlow(ResultsHistoryUiState())
+    val historyState: StateFlow<ResultsHistoryUiState> = _historyState.asStateFlow()
 
-    private val careersByArea = mapOf(
-        VocationalArea.Engineering.label to CareerTemplate(
-            name = "Ingeniería de Sistemas",
-            description = "Diseño y desarrollo de software, soluciones tecnológicas y sistemas de información.",
-        ),
-        VocationalArea.Health.label to CareerTemplate(
-            name = "Psicología",
-            description = "Comprensión del comportamiento humano y acompañamiento de procesos de bienestar.",
-        ),
-        VocationalArea.Business.label to CareerTemplate(
-            name = "Administración de Empresas",
-            description = "Gestión de organizaciones, liderazgo de equipos y toma de decisiones.",
-        ),
-        VocationalArea.Social.label to CareerTemplate(
-            name = "Licenciatura en Humanidades",
-            description = "Educación, comunicación, pensamiento crítico y desarrollo social.",
-        ),
-        VocationalArea.Arts.label to CareerTemplate(
-            name = "Diseño Gráfico",
-            description = "Comunicación visual, creatividad y desarrollo de propuestas gráficas.",
-        ),
-    )
-
-    fun generateResults(
+    fun submitAttempt(
         answers: Map<String, String>,
-        questions: List<QuestionUi> = emptyList(),
+        questions: List<QuestionUi>,
+        elapsedSeconds: Int,
+        onSuccess: () -> Unit,
+        onSessionExpired: () -> Unit = {},
     ) {
-        if (answers.isEmpty()) {
+        if (_uiState.value.isLoading) return
+
+        val requestAnswers = questions.mapNotNull { question ->
+            val backendId = question.backendId ?: return@mapNotNull null
+            val value = answers[question.id]?.toIntOrNull() ?: return@mapNotNull null
+            if (value !in 1..4) return@mapNotNull null
+            TestAnswerDto(
+                questionId = backendId,
+                questionCode = question.code,
+                value = value,
+            )
+        }
+
+        if (requestAnswers.size != questions.size || questions.isEmpty()) {
             _uiState.value = ResultsUiState(
-                resultId = "result-${UUID.randomUUID()}",
-                mainArea = "Sin resultado",
-                summary = "No se encontraron respuestas para calcular el resultado.",
-                generatedAt = currentDate(),
-                isReady = true,
+                errorMessage = "No fue posible preparar todas las respuestas para el envío.",
             )
             return
         }
 
-        val areasByQuestion = if (questions.isNotEmpty()) {
-            questions.associate { it.id to it.area.label }
-        } else {
-            fallbackQuestionAreas()
-        }
-        val valuesByArea = mutableMapOf<String, MutableList<Int>>()
-
-        answers.forEach { (questionId, optionId) ->
-            val area = areasByQuestion[questionId] ?: return@forEach
-            val answerValue = optionId.toIntOrNull()?.coerceIn(1, 4) ?: return@forEach
-            valuesByArea.getOrPut(area) { mutableListOf() }.add(answerValue)
-        }
-
-        val scores = VocationalArea.entries.map { area ->
-            val values = valuesByArea[area.label].orEmpty()
-            val percentage = if (values.isEmpty()) {
-                0
-            } else {
-                (((values.average() - 1.0) / 3.0) * 100.0).roundToInt()
+        viewModelScope.launch {
+            _uiState.value = ResultsUiState(isLoading = true)
+            try {
+                val response = VocationalRepository.submitTest(
+                    elapsedSeconds = elapsedSeconds,
+                    version = TestViewModel.TEST_VERSION,
+                    answers = requestAnswers,
+                )
+                _uiState.value = response.toUiState()
+                onSuccess()
+            } catch (error: ApiException) {
+                _uiState.value = ResultsUiState(errorMessage = error.message)
+                if (error.statusCode == 401) onSessionExpired()
             }
-            ResultScoreUi(area.label, percentage)
-        }.sortedByDescending { it.percentage }
-
-        val mainArea = scores.firstOrNull()?.label ?: "Sin área principal"
-        val careers = scores.take(3).mapIndexedNotNull { index, score ->
-            val career = careersByArea[score.label] ?: return@mapIndexedNotNull null
-            CareerResultUi(
-                rank = index + 1,
-                name = career.name,
-                area = score.label,
-                description = career.description,
-                score = score.percentage,
-            )
         }
-
-        _uiState.value = ResultsUiState(
-            resultId = "result-${UUID.randomUUID()}",
-            mainArea = mainArea,
-            summary = areaDescriptions[mainArea]
-                ?: "Tu resultado refleja una combinación de diferentes intereses vocacionales.",
-            scores = scores,
-            careers = careers,
-            generatedAt = currentDate(),
-            isReady = true,
-        )
     }
 
     fun clearResults() {
         _uiState.value = ResultsUiState()
+        _historyState.value = ResultsHistoryUiState()
     }
 
-    private fun fallbackQuestionAreas(): Map<String, String> = mapOf(
-        "question_1" to VocationalArea.Engineering.label,
-        "question_2" to VocationalArea.Engineering.label,
-        "question_3" to VocationalArea.Engineering.label,
-        "question_4" to VocationalArea.Engineering.label,
-        "question_5" to VocationalArea.Health.label,
-        "question_6" to VocationalArea.Health.label,
-        "question_7" to VocationalArea.Health.label,
-        "question_8" to VocationalArea.Business.label,
-        "question_9" to VocationalArea.Business.label,
-        "question_10" to VocationalArea.Business.label,
-        "question_11" to VocationalArea.Social.label,
-        "question_12" to VocationalArea.Social.label,
-        "question_13" to VocationalArea.Social.label,
-        "question_14" to VocationalArea.Arts.label,
-        "question_15" to VocationalArea.Arts.label,
+    fun loadHistory(
+        onSessionExpired: () -> Unit = {},
+    ) {
+        if (_historyState.value.isLoading) return
+
+        viewModelScope.launch {
+            _historyState.value = _historyState.value.copy(
+                isLoading = true,
+                errorMessage = null,
+            )
+
+            try {
+                val tests = VocationalRepository.myTests()
+                    .sortedByDescending { it.date.orEmpty() }
+
+                _historyState.value = ResultsHistoryUiState(
+                    items = tests.mapIndexed { index, test ->
+                        ResultHistoryItemUi(
+                            id = test.id,
+                            attemptNumber = tests.size - index,
+                            completedAt = formatServerDate(test.date),
+                            duration = formatDuration(test.elapsedSeconds),
+                            version = test.version
+                                ?.removePrefix("Versión ")
+                                ?.takeIf(String::isNotBlank)
+                                ?: "Versión no disponible",
+                        )
+                    },
+                )
+            } catch (error: ApiException) {
+                if (error.statusCode == 404) {
+                    _historyState.value = ResultsHistoryUiState()
+                } else {
+                    _historyState.value = ResultsHistoryUiState(
+                        errorMessage = error.message,
+                    )
+                    if (error.statusCode == 401) onSessionExpired()
+                }
+            }
+        }
+    }
+
+    fun openResult(
+        testId: Long,
+        onSuccess: () -> Unit,
+        onSessionExpired: () -> Unit = {},
+    ) {
+        if (_historyState.value.openingResultId != null) return
+
+        viewModelScope.launch {
+            _historyState.value = _historyState.value.copy(
+                openingResultId = testId,
+                errorMessage = null,
+            )
+
+            try {
+                _uiState.value = VocationalRepository.testResult(testId).toUiState()
+                _historyState.value = _historyState.value.copy(openingResultId = null)
+                onSuccess()
+            } catch (error: ApiException) {
+                _historyState.value = _historyState.value.copy(
+                    openingResultId = null,
+                    errorMessage = error.message,
+                )
+                if (error.statusCode == 401) onSessionExpired()
+            }
+        }
+    }
+
+    private fun TestResultResponseDto.toUiState(): ResultsUiState = ResultsUiState(
+        resultId = testId.toString(),
+        mainAreaId = predominantAreaId,
+        mainArea = predominantAreaName,
+        summary = profile
+            ?: areaDescription
+            ?: "El resultado refleja tus principales intereses vocacionales.",
+        pdfSummary = profile
+            ?: "Tu perfil vocacional fue calculado con base en tus respuestas de la prueba.",
+        scores = areaAffinities.map { affinity ->
+            ResultScoreUi(
+                areaId = affinity.areaId,
+                label = affinity.areaName,
+                percentage = affinity.affinity.coerceIn(0, 100),
+                profile = affinity.profile.orEmpty(),
+                description = affinity.description.orEmpty(),
+                logoPath = affinity.logoPath,
+                pachoPath = affinity.pachoPath,
+            )
+        },
+        careers = recommendedPrograms.mapIndexed { index, program ->
+            CareerResultUi(
+                rank = index + 1,
+                name = program.programName,
+                area = program.areaName ?: predominantAreaName,
+                description = program.description
+                    ?: "Consulta la información institucional de este programa.",
+                score = program.affinity.coerceIn(0, 100),
+                url = program.url,
+                logoPath = program.logoPath,
+            )
+        },
+        generatedAt = formatServerDate(date),
+        generatedAtRaw = date.orEmpty(),
+        reportName = reportName,
+        reportUrl = reportUrl,
+        isReady = true,
     )
 
-    private fun currentDate(): String = SimpleDateFormat(
-        "dd/MM/yyyy HH:mm",
-        Locale("es", "CO"),
-    ).format(Date())
+    private fun formatServerDate(value: String?): String {
+        if (value.isNullOrBlank()) return "Fecha no disponible"
 
-    private data class CareerTemplate(
-        val name: String,
-        val description: String,
-    )
+        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
+            isLenient = true
+        }
+        val parsed = runCatching { parser.parse(value.take(19)) }.getOrNull()
+            ?: return value.replace('T', ' ').take(16)
+
+        return DateFormat.getDateTimeInstance(
+            DateFormat.MEDIUM,
+            DateFormat.SHORT,
+            Locale("es", "CO"),
+        ).format(parsed)
+    }
+
+    private fun formatDuration(value: Int?): String {
+        val totalSeconds = value?.coerceAtLeast(0) ?: return "Duración no disponible"
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+
+        return buildList {
+            if (hours > 0) add("${hours} h")
+            if (minutes > 0 || hours > 0) add("${minutes} min")
+            if (hours == 0) add("${seconds} s")
+        }.joinToString(" ")
+    }
 }

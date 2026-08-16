@@ -2,8 +2,9 @@ package com.usbbog.orientacionvocacional.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.usbbog.orientacionvocacional.data.remote.ApiException
+import com.usbbog.orientacionvocacional.data.remote.VocationalRepository
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ data class ForgotPasswordUiState(
     val document: String = "",
     val isSubmitting: Boolean = false,
     val emailError: String? = null,
+    val documentError: String? = null,
     val statusMessage: String? = null,
     val isSuccess: Boolean = false,
 )
@@ -21,10 +23,7 @@ data class ForgotPasswordUiState(
 class ForgotPasswordViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(ForgotPasswordUiState())
-
-    val uiState: StateFlow<ForgotPasswordUiState> =
-        _uiState.asStateFlow()
-
+    val uiState: StateFlow<ForgotPasswordUiState> = _uiState.asStateFlow()
     private var recoverJob: Job? = null
 
     fun onEmailChange(value: String) {
@@ -39,6 +38,7 @@ class ForgotPasswordViewModel : ViewModel() {
     fun onDocumentChange(value: String) {
         _uiState.value = _uiState.value.copy(
             document = value,
+            documentError = null,
             statusMessage = null,
             isSuccess = false,
         )
@@ -46,62 +46,50 @@ class ForgotPasswordViewModel : ViewModel() {
 
     fun prefillEmail(value: String) {
         if (_uiState.value.email.isBlank() && value.isNotBlank()) {
-            _uiState.value = _uiState.value.copy(
-                email = value.trim(),
-                emailError = null,
-            )
+            _uiState.value = _uiState.value.copy(email = value.trim(), emailError = null)
         }
     }
 
-    /**
-     * Valida el formulario y simula el envío mientras se conecta el backend.
-     * Sustituye el bloque con delay por la llamada al repositorio de
-     * autenticación cuando recoverPassword esté disponible en Android.
-     */
     fun recoverPassword() {
         if (_uiState.value.isSubmitting) return
 
         val email = _uiState.value.email.trim()
         val document = _uiState.value.document.trim()
-
         when {
-            email.isBlank() -> {
+            email.isBlank() -> showEmailError("Debes ingresar el correo electrónico.")
+            !isValidEmail(email) -> showEmailError("Ingresa un correo válido.")
+            document.length > 30 -> {
                 _uiState.value = _uiState.value.copy(
-                    emailError = "Debes ingresar el correo electrónico.",
+                    documentError = "El documento no puede superar 30 caracteres.",
                     statusMessage = null,
                     isSuccess = false,
                 )
             }
-
-            !isValidEmail(email) -> {
-                _uiState.value = _uiState.value.copy(
-                    emailError = "Ingresa un correo válido.",
-                    statusMessage = null,
-                    isSuccess = false,
-                )
-            }
-
             else -> {
                 recoverJob?.cancel()
                 recoverJob = viewModelScope.launch {
                     _uiState.value = _uiState.value.copy(
                         email = email,
-                        document = document,
                         isSubmitting = true,
                         emailError = null,
                         statusMessage = null,
                         isSuccess = false,
                     )
 
-                    delay(800)
-
-                    _uiState.value = _uiState.value.copy(
-                        isSubmitting = false,
-                        statusMessage =
-                            "Si los datos coinciden con una cuenta registrada, " +
-                                    "recibirás un enlace para recuperar tu contraseña.",
-                        isSuccess = true,
-                    )
+                    try {
+                        val message = VocationalRepository.forgotPassword(email)
+                        _uiState.value = _uiState.value.copy(
+                            isSubmitting = false,
+                            statusMessage = message,
+                            isSuccess = true,
+                        )
+                    } catch (error: ApiException) {
+                        _uiState.value = _uiState.value.copy(
+                            isSubmitting = false,
+                            statusMessage = error.message,
+                            isSuccess = false,
+                        )
+                    }
                 }
             }
         }
@@ -113,9 +101,12 @@ class ForgotPasswordViewModel : ViewModel() {
         _uiState.value = ForgotPasswordUiState()
     }
 
-    private fun isValidEmail(email: String): Boolean {
-        return Regex(
-            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
-        ).matches(email)
+    private fun showEmailError(message: String) {
+        _uiState.value = _uiState.value.copy(
+            emailError = message,
+            statusMessage = null,
+            isSuccess = false,
+        )
     }
+
 }
