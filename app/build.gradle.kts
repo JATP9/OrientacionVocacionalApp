@@ -1,7 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { input -> load(input) }
+    }
+}
+
+val apiBaseUrl = localProperties
+    .getProperty("API_BASE_URL", "http://10.0.2.2:8088/")
+    .let { if (it.endsWith("/")) it else "$it/" }
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
 
 android {
     namespace = "com.usbbog.orientacionvocacional"
@@ -19,10 +34,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
     }
 
     buildTypes {
         release {
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
             optimization {
                 enable = false
             }
@@ -33,6 +51,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }

@@ -2,10 +2,13 @@ package com.usbbog.orientacionvocacional.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.usbbog.orientacionvocacional.data.remote.ApiException
+import com.usbbog.orientacionvocacional.data.remote.VocationalRepository
 import com.usbbog.orientacionvocacional.ui.mobile.QuestionOptionUi
 import com.usbbog.orientacionvocacional.ui.mobile.QuestionUi
 import com.usbbog.orientacionvocacional.ui.mobile.TestUiState
 import com.usbbog.orientacionvocacional.ui.mobile.VocationalArea
+import java.text.Normalizer
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -17,25 +20,76 @@ import kotlinx.coroutines.launch
 
 class TestViewModel : ViewModel() {
 
-    private val questions = buildQuestions()
     private var timerJob: Job? = null
 
-    private val _uiState = MutableStateFlow(TestUiState(questions = questions))
+    private val _uiState = MutableStateFlow(TestUiState())
     val uiState: StateFlow<TestUiState> = _uiState.asStateFlow()
 
-    fun startAttempt(audienceLabel: String = "Usuario interno") {
+    fun startAttempt(
+        audienceLabel: String = "Usuario interno",
+        onReady: () -> Unit,
+        onSessionExpired: () -> Unit = {},
+    ) {
+        if (_uiState.value.isLoadingQuestions) return
+
         timerJob?.cancel()
         _uiState.value = TestUiState(
-            attemptId = "attempt-${UUID.randomUUID()}",
-            startedAtMillis = System.currentTimeMillis(),
-            elapsedSeconds = 0,
-            isRunning = true,
-            versionLabel = "Versión v1.1",
-            attemptLabel = "Intento #00011",
+            isLoadingQuestions = true,
             audienceLabel = audienceLabel,
-            questions = questions,
         )
-        startChronometer()
+
+        viewModelScope.launch {
+            try {
+                val questions = VocationalRepository.questions().map { question ->
+                    QuestionUi(
+                        id = question.id.toString(),
+                        backendId = question.id,
+                        code = question.code,
+                        statement = question.statement,
+                        dimension = question.programName,
+                        area = question.areaName.toVocationalArea(),
+                        areaName = question.areaName,
+                        programName = question.programName,
+                        options = likertOptions(),
+                    )
+                }
+
+                if (questions.size != EXPECTED_QUESTION_COUNT) {
+                    throw ApiException(
+                        statusCode = null,
+                        message = "El backend devolvió ${questions.size} preguntas; " +
+                            "la prueba configurada requiere $EXPECTED_QUESTION_COUNT.",
+                    )
+                }
+                if (questions.map(QuestionUi::id).distinct().size != questions.size) {
+                    throw ApiException(
+                        statusCode = null,
+                        message = "El backend devolvió preguntas duplicadas.",
+                    )
+                }
+
+                _uiState.value = TestUiState(
+                    attemptId = "pending-${UUID.randomUUID()}",
+                    startedAtMillis = System.currentTimeMillis(),
+                    elapsedSeconds = 0,
+                    isRunning = true,
+                    isLoadingQuestions = false,
+                    versionLabel = "Versión $TEST_VERSION",
+                    attemptLabel = "Nuevo intento",
+                    audienceLabel = audienceLabel,
+                    questions = questions,
+                )
+                startChronometer()
+                onReady()
+            } catch (error: ApiException) {
+                _uiState.value = TestUiState(
+                    isLoadingQuestions = false,
+                    audienceLabel = audienceLabel,
+                    errorMessage = error.message,
+                )
+                if (error.statusCode == 401) onSessionExpired()
+            }
+        }
     }
 
     fun selectOption(optionId: String) {
@@ -92,10 +146,7 @@ class TestViewModel : ViewModel() {
     fun jumpToQuestion(index: Int) {
         val state = _uiState.value
         if (index !in state.questions.indices) return
-        _uiState.value = state.copy(
-            currentQuestionIndex = index,
-            errorMessage = null,
-        )
+        _uiState.value = state.copy(currentQuestionIndex = index, errorMessage = null)
     }
 
     fun focusFirstUnanswered(): Boolean {
@@ -110,6 +161,10 @@ class TestViewModel : ViewModel() {
         return true
     }
 
+    fun showError(message: String) {
+        _uiState.value = _uiState.value.copy(errorMessage = message)
+    }
+
     fun stopAttempt() {
         timerJob?.cancel()
         timerJob = null
@@ -119,7 +174,7 @@ class TestViewModel : ViewModel() {
     fun resetTest() {
         timerJob?.cancel()
         timerJob = null
-        _uiState.value = TestUiState(questions = questions)
+        _uiState.value = TestUiState()
     }
 
     private fun startChronometer() {
@@ -138,40 +193,31 @@ class TestViewModel : ViewModel() {
         super.onCleared()
     }
 
-    private fun buildQuestions(): List<QuestionUi> {
-        val statements = listOf(
-            Triple("Disfruto resolver problemas utilizando tecnología.", "Razonamiento tecnológico", VocationalArea.Engineering),
-            Triple("Me interesa comprender cómo funcionan los sistemas y dispositivos.", "Pensamiento sistémico", VocationalArea.Engineering),
-            Triple("Me gusta analizar datos, números y patrones para encontrar soluciones.", "Análisis cuantitativo", VocationalArea.Engineering),
-            Triple("Me motiva crear herramientas digitales que faciliten tareas cotidianas.", "Creación tecnológica", VocationalArea.Engineering),
-            Triple("Disfruto acompañar a otras personas cuando necesitan apoyo.", "Servicio y cuidado", VocationalArea.Health),
-            Triple("Me interesa aprender sobre el cuerpo, la salud y el bienestar.", "Interés científico en salud", VocationalArea.Health),
-            Triple("Puedo mantener la calma y actuar con empatía ante situaciones difíciles.", "Empatía y autocontrol", VocationalArea.Health),
-            Triple("Me siento cómodo organizando actividades y coordinando equipos.", "Liderazgo", VocationalArea.Business),
-            Triple("Me interesa planear proyectos y tomar decisiones con información.", "Gestión", VocationalArea.Business),
-            Triple("Disfruto proponer mejoras para que una organización funcione mejor.", "Innovación organizacional", VocationalArea.Business),
-            Triple("Me interesa comprender el comportamiento y las emociones de las personas.", "Comprensión humana", VocationalArea.Social),
-            Triple("Me gusta escuchar diferentes puntos de vista y facilitar acuerdos.", "Comunicación social", VocationalArea.Social),
-            Triple("Disfruto enseñar y ayudar a otras personas a desarrollar sus habilidades.", "Acompañamiento educativo", VocationalArea.Social),
-            Triple("Me interesa crear, diseñar o expresar ideas de manera visual.", "Expresión creativa", VocationalArea.Arts),
-            Triple("Disfruto comunicar historias e ideas mediante distintos medios.", "Comunicación creativa", VocationalArea.Arts),
-        )
-
-        return statements.mapIndexed { index, (statement, dimension, area) ->
-            QuestionUi(
-                id = "question_${index + 1}",
-                statement = statement,
-                dimension = dimension,
-                area = area,
-                options = likertOptions(),
-            )
-        }
-    }
-
     private fun likertOptions(): List<QuestionOptionUi> = listOf(
         QuestionOptionUi("1", "Rara vez"),
         QuestionOptionUi("2", "A veces"),
         QuestionOptionUi("3", "A menudo"),
         QuestionOptionUi("4", "Siempre"),
     )
+
+    private fun String.toVocationalArea(): VocationalArea {
+        val normalized = Normalizer.normalize(this, Normalizer.Form.NFD)
+            .replace("\\p{M}+".toRegex(), "")
+            .lowercase()
+
+        return when {
+            "salud" in normalized -> VocationalArea.Health
+            "negocio" in normalized || "administr" in normalized -> VocationalArea.Business
+            "social" in normalized || "human" in normalized || "educ" in normalized ->
+                VocationalArea.Social
+            "arte" in normalized || "diseno" in normalized || "comunic" in normalized ->
+                VocationalArea.Arts
+            else -> VocationalArea.Engineering
+        }
+    }
+
+    companion object {
+        const val EXPECTED_QUESTION_COUNT = 180
+        const val TEST_VERSION = "v1.1"
+    }
 }

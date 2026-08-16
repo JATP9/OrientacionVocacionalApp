@@ -70,6 +70,7 @@ fun ForgotPasswordScreen(
     document: String,
     isSubmitting: Boolean,
     emailError: String?,
+    documentError: String?,
     statusMessage: String?,
     isSuccess: Boolean,
     onEmailChange: (String) -> Unit,
@@ -115,6 +116,7 @@ fun ForgotPasswordScreen(
                     document = document,
                     isSubmitting = isSubmitting,
                     emailError = emailError,
+                    documentError = documentError,
                     statusMessage = statusMessage,
                     isSuccess = isSuccess,
                     onEmailChange = onEmailChange,
@@ -173,6 +175,7 @@ private fun RecoverCard(
     document: String,
     isSubmitting: Boolean,
     emailError: String?,
+    documentError: String?,
     statusMessage: String?,
     isSuccess: Boolean,
     onEmailChange: (String) -> Unit,
@@ -228,7 +231,7 @@ private fun RecoverCard(
                 Spacer(Modifier.height(9.dp))
 
                 Text(
-                    text = "Simula el envío del enlace para el backend real",
+                    text = "Solicita un enlace seguro para restablecer tu contraseña",
                     color = RecoverWhite,
                     fontSize = 15.sp,
                     lineHeight = 21.sp,
@@ -269,11 +272,29 @@ private fun RecoverCard(
                 RecoverField(
                     value = document,
                     onValueChange = onDocumentChange,
-                    label = "Documento opcional",
-                    placeholder = "Número de documento",
+                    label = "Número de identificación (opcional)",
+                    placeholder = "Tu documento registrado",
                     keyboardType = KeyboardType.Number,
                     enabled = !isSubmitting,
                 )
+
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = "Ayuda a distinguir cuentas que compartan datos de contacto.",
+                    color = RecoverGray,
+                    fontSize = 11.5.sp,
+                    lineHeight = 16.sp,
+                )
+
+                if (!documentError.isNullOrBlank()) {
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        text = documentError,
+                        color = Color(0xFF9D2424),
+                        fontSize = 12.5.sp,
+                        lineHeight = 17.sp,
+                    )
+                }
 
                 if (!statusMessage.isNullOrBlank()) {
                     Spacer(Modifier.height(14.dp))
@@ -289,7 +310,7 @@ private fun RecoverCard(
                     text = if (isSubmitting) {
                         "Enviando..."
                     } else {
-                        "Recuperar contraseña"
+                        "Enviar instrucciones"
                     },
                     enabled = !isSubmitting,
                     onClick = onRecoverClick,
@@ -298,7 +319,7 @@ private fun RecoverCard(
                 Spacer(Modifier.height(16.dp))
 
                 Text(
-                    text = "Volver al login",
+                    text = "Volver a iniciar sesión",
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .clickable(

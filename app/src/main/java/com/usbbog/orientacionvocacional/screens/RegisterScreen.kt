@@ -2,7 +2,6 @@ package com.usbbog.orientacionvocacional.screens
 
 import android.app.DatePickerDialog
 import android.content.Context
-import android.util.Patterns
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,6 +44,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,6 +71,13 @@ import com.usbbog.orientacionvocacional.ui.components.UsbAppFooter
 import com.usbbog.orientacionvocacional.ui.components.UsbAppTopBar
 import com.usbbog.orientacionvocacional.ui.mobile.RegisterField
 import com.usbbog.orientacionvocacional.ui.mobile.RegisterUiState
+import com.usbbog.orientacionvocacional.viewmodel.GENDER_OTHER_MAX_LENGTH
+import com.usbbog.orientacionvocacional.viewmodel.USERNAME_MAX_LENGTH
+import com.usbbog.orientacionvocacional.viewmodel.birthDateValidationError
+import com.usbbog.orientacionvocacional.viewmodel.isValidEmail
+import com.usbbog.orientacionvocacional.viewmodel.isValidPhone
+import com.usbbog.orientacionvocacional.viewmodel.passwordRequirementText
+import com.usbbog.orientacionvocacional.viewmodel.passwordValidationError
 import java.util.Calendar
 import java.util.Locale
 
@@ -81,8 +90,7 @@ private val RegisterBorder = Color(0xFFD7D5D0)
 private val RegisterSoftBackground = Color(0xFFFAF6F0)
 private val RegisterError = Color(0xFF9F2D20)
 
-private const val UNDER_AGE_MESSAGE =
-    "Debes tener al menos 18 años para crear una cuenta."
+private const val UNDER_AGE_MESSAGE = "Debes ser mayor de edad."
 
 private val genderOptions = listOf(
     "Masculino",
@@ -91,122 +99,38 @@ private val genderOptions = listOf(
     "Otro",
 )
 
-private val departmentOptions = listOf(
-    "Amazonas",
-    "Antioquia",
-    "Arauca",
-    "Atlántico",
-    "Bogotá D.C.",
-    "Bolívar",
-    "Boyacá",
-    "Caldas",
-    "Caquetá",
-    "Casanare",
-    "Cauca",
-    "Cesar",
-    "Chocó",
-    "Córdoba",
-    "Cundinamarca",
-    "Guainía",
-    "Guaviare",
-    "Huila",
-    "La Guajira",
-    "Magdalena",
-    "Meta",
-    "Nariño",
-    "Norte de Santander",
-    "Putumayo",
-    "Quindío",
-    "Risaralda",
-    "San Andrés y Providencia",
-    "Santander",
-    "Sucre",
-    "Tolima",
-    "Valle del Cauca",
-    "Vaupés",
-    "Vichada",
-)
-
-private val cityOptions = listOf(
-    "Apartadó",
-    "Arauca",
-    "Armenia",
-    "Barrancabermeja",
-    "Barranquilla",
-    "Bello",
-    "Bogotá D.C.",
-    "Bucaramanga",
-    "Buenaventura",
-    "Buga",
-    "Cali",
-    "Cartagena",
-    "Cartago",
-    "Chía",
-    "Cúcuta",
-    "Duitama",
-    "Envigado",
-    "Facatativá",
-    "Florencia",
-    "Floridablanca",
-    "Fusagasugá",
-    "Girardot",
-    "Ibagué",
-    "Ipiales",
-    "Itagüí",
-    "Jamundí",
-    "Leticia",
-    "Manizales",
-    "Medellín",
-    "Mitú",
-    "Mocoa",
-    "Montería",
-    "Neiva",
-    "Palmira",
-    "Pasto",
-    "Pereira",
-    "Popayán",
-    "Puerto Carreño",
-    "Quibdó",
-    "Riohacha",
-    "Rionegro",
-    "San Andrés",
-    "Santa Marta",
-    "Sincelejo",
-    "Soacha",
-    "Sogamoso",
-    "Tunja",
-    "Valledupar",
-    "Villavicencio",
-    "Yopal",
-)
-
 private val semesterOptions = (1..10).map(Int::toString)
 
 /**
  * Registro móvil basado en la pantalla web.
  *
- * Todos los campos se mantienen en RegisterUiState y se validan antes de crear
- * la sesión local. La persistencia definitiva quedará a cargo del backend.
+ * Los campos se mantienen en RegisterUiState, usan los catálogos del backend y
+ * se validan antes de crear la cuenta.
  */
 @Composable
 fun RegisterWebScreenV2(
     state: RegisterUiState,
     onFieldChange: (RegisterField, String) -> Unit,
     onBirthDateChange: (Long) -> Unit,
-    onBelongsToUniversityChange: (Boolean) -> Unit,
-    onActiveStudentChange: (Boolean) -> Unit,
-    onAcceptTermsChange: (Boolean) -> Unit,
-    onAuthorizeDataChange: (Boolean) -> Unit,
+    onInstitutionLinkedChoiceChange: (String) -> Unit,
+    onInstitutionRelationshipChange: (String) -> Unit,
+    onPersonalDataConsentChange: (Boolean) -> Unit,
+    onPrivacyPolicyChange: (Boolean) -> Unit,
+    onTermsChange: (Boolean) -> Unit,
+    onAdultConfirmedChange: (Boolean) -> Unit,
     onRegisterClick: () -> Unit,
     onBackToLoginClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var formErrors by remember { mutableStateOf(RegisterFormErrors()) }
     var pageError by rememberSaveable { mutableStateOf<String?>(null) }
+    var adultDialogOpen by rememberSaveable { mutableStateOf(false) }
+    var adultCheck by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -333,6 +257,19 @@ fun RegisterWebScreenV2(
                         )
 
                         RegisterTextField(
+                            value = state.username,
+                            onValueChange = {
+                                onFieldChange(RegisterField.Username, it)
+                                formErrors = formErrors.copy(username = null)
+                                pageError = null
+                            },
+                            label = "Nombre de usuario",
+                            placeholder = "Ingresa tu nombre de usuario",
+                            error = formErrors.username,
+                            enabled = !state.isLoading,
+                        )
+
+                        RegisterTextField(
                             value = state.email,
                             onValueChange = {
                                 onFieldChange(RegisterField.Email, it)
@@ -353,7 +290,7 @@ fun RegisterWebScreenV2(
                             onValueChange = {
                                 onFieldChange(
                                     RegisterField.DocumentNumber,
-                                    it.filter(Char::isDigit).take(15),
+                                    it,
                                 )
                                 formErrors = formErrors.copy(
                                     document = null,
@@ -362,7 +299,7 @@ fun RegisterWebScreenV2(
                             },
                             label = "Identificación",
                             placeholder = "xxxxxxxxxxx",
-                            keyboardType = KeyboardType.Number,
+                            keyboardType = KeyboardType.Text,
                             error = formErrors.document,
                             enabled = !state.isLoading,
                         )
@@ -382,7 +319,7 @@ fun RegisterWebScreenV2(
                                     onBirthDateChange(selectedDate)
 
                                     val dateError =
-                                        validateBirthDate(selectedDate)
+                                        birthDateValidationError(selectedDate)
 
                                     formErrors = formErrors.copy(
                                         birthDate = dateError,
@@ -406,7 +343,9 @@ fun RegisterWebScreenV2(
                             onValueChange = {
                                 onFieldChange(
                                     RegisterField.Phone,
-                                    it.filter(Char::isDigit).take(15),
+                                    it.filter { character ->
+                                        character.isDigit() || character == '+' || character == ' '
+                                    },
                                 )
                                 formErrors = formErrors.copy(
                                     phone = null,
@@ -437,35 +376,32 @@ fun RegisterWebScreenV2(
                             },
                         )
 
-                        RegisterTextField(
-                            value = state.genderOther,
-                            onValueChange = {
-                                onFieldChange(
-                                    RegisterField.GenderOther,
-                                    it,
-                                )
-                                formErrors = formErrors.copy(
-                                    genderOther = null,
-                                )
-                                pageError = null
-                            },
-                            label = "En caso de otro ¿cuál?",
-                            placeholder = "-",
-                            error = formErrors.genderOther,
-                            enabled =
-                                state.gender == "Otro" &&
-                                        !state.isLoading,
-                            capitalization =
-                                KeyboardCapitalization.Sentences,
-                        )
+                        if (state.gender == "Otro") {
+                            RegisterTextField(
+                                value = state.genderOther,
+                                onValueChange = {
+                                    onFieldChange(
+                                        RegisterField.GenderOther,
+                                        it,
+                                    )
+                                    formErrors = formErrors.copy(genderOther = null)
+                                    pageError = null
+                                },
+                                label = "En caso de otro ¿cuál?",
+                                placeholder = "Indica tu identidad de género",
+                                error = formErrors.genderOther,
+                                enabled = !state.isLoading,
+                                capitalization = KeyboardCapitalization.Sentences,
+                            )
+                        }
 
                         RegisterDropdownField(
                             selectedValue = state.department,
                             label = "Departamento",
                             placeholder = "-",
-                            options = departmentOptions,
+                            options = state.departmentOptions.map { it.label },
                             error = formErrors.department,
-                            enabled = !state.isLoading,
+                            enabled = !state.isLoading && !state.isCatalogLoading,
                             onOptionSelected = {
                                 onFieldChange(
                                     RegisterField.Department,
@@ -482,9 +418,11 @@ fun RegisterWebScreenV2(
                             selectedValue = state.city,
                             label = "Ciudad",
                             placeholder = "-",
-                            options = cityOptions,
+                            options = state.cityOptions.map { it.label },
                             error = formErrors.city,
-                            enabled = !state.isLoading,
+                            enabled = !state.isLoading &&
+                                !state.isCatalogLoading &&
+                                state.departmentId != null,
                             onOptionSelected = {
                                 onFieldChange(RegisterField.City, it)
                                 formErrors = formErrors.copy(
@@ -544,6 +482,13 @@ fun RegisterWebScreenV2(
                             },
                         )
 
+                        Text(
+                            text = passwordRequirementText(),
+                            color = RegisterMuted,
+                            fontSize = 11.5.sp,
+                            lineHeight = 16.sp,
+                        )
+
                         RegisterTextField(
                             value = state.confirmPassword,
                             onValueChange = {
@@ -596,54 +541,54 @@ fun RegisterWebScreenV2(
                             },
                         )
 
-                        RegisterCheckLine(
-                            checked = state.belongsToUniversity,
-                            text =
-                                "¿Se encuentra usted actualmente inscrito " +
-                                        "en la Universidad de San Buenaventura?",
-                            onCheckedChange = {
-                                onBelongsToUniversityChange(it)
+                        RegisterDropdownField(
+                            selectedValue = state.institutionLinkedChoice,
+                            label = "¿Estás vinculado a la Universidad de San Buenaventura?",
+                            placeholder = "Selecciona una opción",
+                            options = listOf("Sí", "No"),
+                            error = formErrors.institutionLinked,
+                            enabled = !state.isLoading,
+                            onOptionSelected = {
+                                onInstitutionLinkedChoiceChange(it)
+                                formErrors = formErrors.copy(
+                                    institutionLinked = null,
+                                    institutionRelationship = null,
+                                    currentCareer = null,
+                                    currentSemester = null,
+                                )
+                                pageError = null
+                            },
+                        )
 
-                                if (!it && !state.isActiveStudent) {
+                        if (state.isInstitutionLinked) {
+                            RegisterDropdownField(
+                                selectedValue = state.institutionRelationship,
+                                label = "Tipo de vinculación",
+                                placeholder = "Selecciona una opción",
+                                options = listOf("Inscrito", "Estudiante"),
+                                error = formErrors.institutionRelationship,
+                                enabled = !state.isLoading,
+                                onOptionSelected = {
+                                    onInstitutionRelationshipChange(it)
                                     formErrors = formErrors.copy(
+                                        institutionRelationship = null,
                                         currentCareer = null,
                                         currentSemester = null,
                                     )
-                                }
+                                    pageError = null
+                                },
+                            )
+                        }
 
-                                pageError = null
-                            },
-                            enabled = !state.isLoading,
-                        )
-
-                        RegisterCheckLine(
-                            checked = state.isActiveStudent,
-                            text =
-                                "¿Es usted estudiante activo de algún " +
-                                        "programa de la Universidad de " +
-                                        "San Buenaventura?",
-                            onCheckedChange = {
-                                onActiveStudentChange(it)
-
-                                if (!it && !state.belongsToUniversity) {
-                                    formErrors = formErrors.copy(
-                                        currentCareer = null,
-                                        currentSemester = null,
-                                    )
-                                }
-
-                                pageError = null
-                            },
-                            enabled = !state.isLoading,
-                        )
-
-                        if (
-                            state.belongsToUniversity ||
-                            state.isActiveStudent
-                        ) {
-                            RegisterTextField(
-                                value = state.currentCareer,
-                                onValueChange = {
+                        if (state.requiresAcademicData) {
+                            RegisterDropdownField(
+                                selectedValue = state.currentCareer,
+                                label = "Programa actual",
+                                placeholder = "Programa académico",
+                                options = state.careerOptions.map { it.label },
+                                error = formErrors.currentCareer,
+                                enabled = !state.isLoading && !state.isCatalogLoading,
+                                onOptionSelected = {
                                     onFieldChange(
                                         RegisterField.CurrentCareer,
                                         it,
@@ -653,12 +598,6 @@ fun RegisterWebScreenV2(
                                     )
                                     pageError = null
                                 },
-                                label = "Carrera actual",
-                                placeholder = "Programa académico",
-                                error = formErrors.currentCareer,
-                                enabled = !state.isLoading,
-                                capitalization =
-                                    KeyboardCapitalization.Words,
                             )
 
                             RegisterDropdownField(
@@ -682,39 +621,57 @@ fun RegisterWebScreenV2(
                         }
 
                         RegisterConsentBox(
-                            checked = state.authorizeData,
+                            checked = state.personalDataConsentAccepted,
                             text =
-                                "Tus datos serán usados únicamente con " +
-                                        "fines de orientación vocacional, " +
-                                        "seguimiento académico y mejora " +
-                                        "del servicio.",
+                                "Tus datos serán usados únicamente con fines de orientación " +
+                                    "vocacional, seguimiento académico y mejora del servicio.",
                             onCheckedChange = {
-                                onAuthorizeDataChange(it)
-                                formErrors = formErrors.copy(
-                                    dataConsent = null,
-                                )
+                                onPersonalDataConsentChange(it)
+                                formErrors = formErrors.copy(personalDataConsent = null)
                                 pageError = null
                             },
-                            error = formErrors.dataConsent,
+                            error = formErrors.personalDataConsent,
                             enabled = !state.isLoading,
                         )
 
                         RegisterConsentBox(
-                            checked = state.acceptTerms,
-                            text =
-                                "Declaro haber leído y aceptado las " +
-                                        "Políticas de Tratamiento de Datos " +
-                                        "Personales, así como los Términos " +
-                                        "y Condiciones de la institución.",
+                            checked = state.privacyPolicyAccepted,
+                            text = "Acepto las Políticas de uso y privacidad.",
                             onCheckedChange = {
-                                onAcceptTermsChange(it)
-                                formErrors = formErrors.copy(
-                                    termsAccepted = null,
-                                )
+                                onPrivacyPolicyChange(it)
+                                formErrors = formErrors.copy(privacyPolicy = null)
+                                pageError = null
+                            },
+                            error = formErrors.privacyPolicy,
+                            enabled = !state.isLoading,
+                            linkLabel = "Consultar políticas",
+                            onLinkClick = {
+                                runCatching {
+                                    uriHandler.openUri(
+                                        "https://www.usbbog.edu.co/politicas-de-uso-y-privacidad/",
+                                    )
+                                }
+                            },
+                        )
+
+                        RegisterConsentBox(
+                            checked = state.termsAccepted,
+                            text = "Acepto los Términos y Condiciones.",
+                            onCheckedChange = {
+                                onTermsChange(it)
+                                formErrors = formErrors.copy(termsAccepted = null)
                                 pageError = null
                             },
                             error = formErrors.termsAccepted,
                             enabled = !state.isLoading,
+                            linkLabel = "Consultar términos",
+                            onLinkClick = {
+                                runCatching {
+                                    uriHandler.openUri(
+                                        "https://www.usbbog.edu.co/politicas-de-uso-y-privacidad/",
+                                    )
+                                }
+                            },
                         )
 
                         val visibleError =
@@ -738,6 +695,8 @@ fun RegisterWebScreenV2(
                                             state.firstName,
                                         lastName =
                                             state.lastName,
+                                        username =
+                                            state.username,
                                         email =
                                             state.email,
                                         document =
@@ -754,9 +713,12 @@ fun RegisterWebScreenV2(
                                             state.department,
                                         city =
                                             state.city,
+                                        institutionLinkedChoice =
+                                            state.institutionLinkedChoice,
+                                        institutionRelationship =
+                                            state.institutionRelationship,
                                         requiresAcademicData =
-                                            state.belongsToUniversity ||
-                                                    state.isActiveStudent,
+                                            state.requiresAcademicData,
                                         currentCareer =
                                             state.currentCareer,
                                         currentSemester =
@@ -765,10 +727,12 @@ fun RegisterWebScreenV2(
                                             state.password,
                                         confirmPassword =
                                             state.confirmPassword,
-                                        dataConsent =
-                                            state.authorizeData,
+                                        personalDataConsent =
+                                            state.personalDataConsentAccepted,
+                                        privacyPolicy =
+                                            state.privacyPolicyAccepted,
                                         termsAccepted =
-                                            state.acceptTerms,
+                                            state.termsAccepted,
                                     )
 
                                 formErrors = newErrors
@@ -786,7 +750,9 @@ fun RegisterWebScreenV2(
                                         }
                                 } else {
                                     pageError = null
-                                    onRegisterClick()
+                                    adultCheck = false
+                                    onAdultConfirmedChange(false)
+                                    adultDialogOpen = true
                                 }
                             },
                         )
@@ -797,6 +763,86 @@ fun RegisterWebScreenV2(
 
         UsbAppFooter()
     }
+
+    if (adultDialogOpen) {
+        AdultConfirmationDialog(
+            checked = adultCheck,
+            isLoading = state.isLoading,
+            onCheckedChange = { adultCheck = it },
+            onDismiss = {
+                adultDialogOpen = false
+                adultCheck = false
+                onAdultConfirmedChange(false)
+            },
+            onConfirm = {
+                onAdultConfirmedChange(true)
+                adultDialogOpen = false
+                onRegisterClick()
+            },
+        )
+    }
+}
+
+@Composable
+private fun AdultConfirmationDialog(
+    checked: Boolean,
+    isLoading: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Confirmación de mayoría de edad",
+                color = RegisterBlack,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Para completar el registro debes confirmar que eres mayor de 18 años.",
+                    color = RegisterMuted,
+                    lineHeight = 20.sp,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isLoading) { onCheckedChange(!checked) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = checked,
+                        onCheckedChange = onCheckedChange,
+                        enabled = !isLoading,
+                        colors = CheckboxDefaults.colors(checkedColor = RegisterOrange),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Confirmo que soy mayor de 18 años.",
+                        color = RegisterBlack,
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = checked && !isLoading,
+            ) {
+                Text("Confirmar y registrarme", color = RegisterOrange)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
+                Text("Cancelar", color = RegisterMuted)
+            }
+        },
+        containerColor = RegisterWhite,
+    )
 }
 
 @Composable
@@ -1135,6 +1181,8 @@ private fun RegisterConsentBox(
     error: String?,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    linkLabel: String? = null,
+    onLinkClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -1179,6 +1227,21 @@ private fun RegisterConsentBox(
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
             )
+        }
+
+        if (linkLabel != null && onLinkClick != null) {
+            TextButton(
+                onClick = onLinkClick,
+                enabled = enabled,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            ) {
+                Text(
+                    text = linkLabel,
+                    color = RegisterOrange,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
 
         RegisterFieldError(error)
@@ -1352,6 +1415,7 @@ private fun RegisterErrorBanner(
 private data class RegisterFormErrors(
     val firstName: String? = null,
     val lastName: String? = null,
+    val username: String? = null,
     val email: String? = null,
     val document: String? = null,
     val birthDate: String? = null,
@@ -1360,17 +1424,21 @@ private data class RegisterFormErrors(
     val genderOther: String? = null,
     val department: String? = null,
     val city: String? = null,
+    val institutionLinked: String? = null,
+    val institutionRelationship: String? = null,
     val currentCareer: String? = null,
     val currentSemester: String? = null,
     val password: String? = null,
     val confirmPassword: String? = null,
-    val dataConsent: String? = null,
+    val personalDataConsent: String? = null,
+    val privacyPolicy: String? = null,
     val termsAccepted: String? = null,
 ) {
     fun hasErrors(): Boolean =
         listOf(
             firstName,
             lastName,
+            username,
             email,
             document,
             birthDate,
@@ -1379,11 +1447,14 @@ private data class RegisterFormErrors(
             genderOther,
             department,
             city,
+            institutionLinked,
+            institutionRelationship,
             currentCareer,
             currentSemester,
             password,
             confirmPassword,
-            dataConsent,
+            personalDataConsent,
+            privacyPolicy,
             termsAccepted,
         ).any { it != null }
 }
@@ -1391,6 +1462,7 @@ private data class RegisterFormErrors(
 private fun validateRegisterForm(
     firstName: String,
     lastName: String,
+    username: String,
     email: String,
     document: String,
     birthDateMillis: Long?,
@@ -1399,12 +1471,15 @@ private fun validateRegisterForm(
     genderOther: String,
     department: String,
     city: String,
+    institutionLinkedChoice: String,
+    institutionRelationship: String,
     requiresAcademicData: Boolean,
     currentCareer: String,
     currentSemester: String,
     password: String,
     confirmPassword: String,
-    dataConsent: Boolean,
+    personalDataConsent: Boolean,
+    privacyPolicy: Boolean,
     termsAccepted: Boolean,
 ): RegisterFormErrors =
     RegisterFormErrors(
@@ -1420,25 +1495,27 @@ private fun validateRegisterForm(
             } else {
                 null
             },
+        username = when {
+            username.trim().isBlank() -> "Ingresa el nombre de usuario."
+            username.trim().length > USERNAME_MAX_LENGTH ->
+                "El nombre de usuario no puede superar $USERNAME_MAX_LENGTH caracteres."
+            else -> null
+        },
         email =
-            if (
-                !Patterns.EMAIL_ADDRESS
-                    .matcher(email.trim())
-                    .matches()
-            ) {
+            if (!isValidEmail(email)) {
                 "Ingresa un correo válido."
             } else {
                 null
             },
         document =
-            if (document.trim().length < 6) {
+            if (document.trim().length !in 6..30) {
                 "Ingresa un documento válido."
             } else {
                 null
             },
-        birthDate = validateBirthDate(birthDateMillis),
+        birthDate = birthDateValidationError(birthDateMillis),
         phone =
-            if (phone.trim().length < 7) {
+            if (!isValidPhone(phone)) {
                 "Ingresa un teléfono válido."
             } else {
                 null
@@ -1449,15 +1526,13 @@ private fun validateRegisterForm(
             } else {
                 null
             },
-        genderOther =
-            if (
-                gender == "Otro" &&
-                genderOther.isBlank()
-            ) {
-                "Describe el género seleccionado."
-            } else {
-                null
-            },
+        genderOther = when {
+            gender == "Otro" && genderOther.isBlank() ->
+                "Indica otra identidad de género."
+            genderOther.length > GENDER_OTHER_MAX_LENGTH ->
+                "El detalle de género no puede superar $GENDER_OTHER_MAX_LENGTH caracteres."
+            else -> null
+        },
         department =
             if (department.isBlank()) {
                 "Selecciona un departamento."
@@ -1467,6 +1542,18 @@ private fun validateRegisterForm(
         city =
             if (city.isBlank()) {
                 "Selecciona una ciudad."
+            } else {
+                null
+            },
+        institutionLinked =
+            if (institutionLinkedChoice !in listOf("Sí", "No")) {
+                "Selecciona si estás vinculado a la universidad."
+            } else {
+                null
+            },
+        institutionRelationship =
+            if (institutionLinkedChoice == "Sí" && institutionRelationship.isBlank()) {
+                "Selecciona el tipo de vinculación."
             } else {
                 null
             },
@@ -1488,16 +1575,7 @@ private fun validateRegisterForm(
             } else {
                 null
             },
-        password =
-            when {
-                password.isBlank() ->
-                    "Ingresa una contraseña."
-
-                password.length < 8 ->
-                    "La contraseña debe tener mínimo 8 caracteres."
-
-                else -> null
-            },
+        password = passwordValidationError(password),
         confirmPassword =
             when {
                 confirmPassword.isBlank() ->
@@ -1508,57 +1586,25 @@ private fun validateRegisterForm(
 
                 else -> null
             },
-        dataConsent =
-            if (!dataConsent) {
-                "Debes confirmar que leíste el aviso " +
-                        "sobre el uso de tus datos."
+        personalDataConsent =
+            if (!personalDataConsent) {
+                "Debes autorizar el tratamiento de datos personales."
+            } else {
+                null
+            },
+        privacyPolicy =
+            if (!privacyPolicy) {
+                "Debes aceptar las políticas de uso y privacidad."
             } else {
                 null
             },
         termsAccepted =
             if (!termsAccepted) {
-                "Debes aceptar políticas y términos."
+                "Debes aceptar los términos y condiciones."
             } else {
                 null
             },
     )
-
-private fun validateBirthDate(
-    dateMillis: Long?,
-): String? {
-    if (dateMillis == null) {
-        return "Selecciona tu fecha de nacimiento."
-    }
-
-    val birthDate = normalizedCalendar(dateMillis)
-    val today = normalizedCalendar(
-        System.currentTimeMillis(),
-    )
-
-    if (birthDate.after(today)) {
-        return "La fecha de nacimiento no puede ser futura."
-    }
-
-    val oldestAllowed =
-        (today.clone() as Calendar).apply {
-            add(Calendar.YEAR, -120)
-        }
-
-    if (birthDate.before(oldestAllowed)) {
-        return "Ingresa una fecha de nacimiento válida."
-    }
-
-    val adultLimit =
-        (today.clone() as Calendar).apply {
-            add(Calendar.YEAR, -18)
-        }
-
-    return if (birthDate.after(adultLimit)) {
-        UNDER_AGE_MESSAGE
-    } else {
-        null
-    }
-}
 
 private fun showBirthDatePicker(
     context: Context,
@@ -1608,7 +1654,12 @@ private fun showBirthDatePicker(
             add(Calendar.YEAR, -120)
         }
 
-    dialog.datePicker.maxDate = today.timeInMillis
+    val adultLimit =
+        (today.clone() as Calendar).apply {
+            add(Calendar.YEAR, -18)
+        }
+
+    dialog.datePicker.maxDate = adultLimit.timeInMillis
     dialog.datePicker.minDate = oldestAllowed.timeInMillis
     dialog.show()
 }

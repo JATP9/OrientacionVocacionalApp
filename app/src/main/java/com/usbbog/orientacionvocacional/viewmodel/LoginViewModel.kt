@@ -1,153 +1,121 @@
 package com.usbbog.orientacionvocacional.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.usbbog.orientacionvocacional.data.remote.ApiException
+import com.usbbog.orientacionvocacional.data.remote.VocationalRepository
+import com.usbbog.orientacionvocacional.data.session.SessionStore
 import com.usbbog.orientacionvocacional.ui.mobile.LoginUiState
 import com.usbbog.orientacionvocacional.ui.mobile.UserRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class LoginViewModel : ViewModel() {
 
-    private val _uiState = MutableStateFlow(LoginUiState())
+    private val restoredSession = SessionStore.session
 
-    val uiState: StateFlow<LoginUiState> =
-        _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(
+        LoginUiState(
+            identifier = restoredSession?.username.orEmpty(),
+            rememberMe = restoredSession != null,
+            authenticatedRole = restoredSession?.role?.toUserRole(),
+        ),
+    )
 
-    fun onEmailChange(email: String) {
-        _uiState.value = _uiState.value.copy(
-            email = email,
-            errorMessage = null
-        )
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    fun onIdentifierChange(identifier: String) {
+        _uiState.value = _uiState.value.copy(identifier = identifier, errorMessage = null)
     }
 
     fun onPasswordChange(password: String) {
-        _uiState.value = _uiState.value.copy(
-            password = password,
-            errorMessage = null
-        )
+        _uiState.value = _uiState.value.copy(password = password, errorMessage = null)
     }
 
     fun onRememberChange(remember: Boolean) {
-        _uiState.value = _uiState.value.copy(
-            rememberMe = remember
-        )
+        _uiState.value = _uiState.value.copy(rememberMe = remember)
     }
 
-    fun prefillEmail(email: String) {
+    fun prefillIdentifier(identifier: String) {
         _uiState.value = _uiState.value.copy(
-            email = email,
+            identifier = identifier,
             password = "",
             errorMessage = null,
             authenticatedRole = null,
         )
     }
 
-    /**
-     * Por ahora solo valida los campos.
-     *
-     * Cuando exista un backend, aquí se realizará la llamada
-     * al repositorio para iniciar sesión.
-     */
-    fun login(): Boolean {
-
-        val currentState = _uiState.value
-
-        val email = currentState.email.trim()
-        val password = currentState.password
-
-        return when {
-
-            email.isBlank() -> {
-                showError(
-                    "Debes ingresar el correo electrónico."
-                )
-                false
-            }
-
-            !isValidEmail(email) -> {
-                showError(
-                    "Debes ingresar un correo electrónico válido."
-                )
-                false
-            }
-
-            password.isBlank() -> {
-                showError(
-                    "Debes ingresar la contraseña."
-                )
-                false
-            }
-
-            password.length < 6 -> {
-                showError(
-                    "La contraseña debe tener mínimo 6 caracteres."
-                )
-                false
-            }
-
-            else -> {
-                val role = if (email.equals(ADMIN_DEMO_EMAIL, ignoreCase = true)) {
-                    UserRole.Admin
-                } else {
-                    UserRole.Student
-                }
-
-                _uiState.value = currentState.copy(
-                    email = email,
-                    errorMessage = null,
-                    authenticatedRole = role,
-                )
-
-                true
-            }
-        }
+    fun adoptAuthenticatedSession(identifier: String, role: UserRole) {
+        _uiState.value = _uiState.value.copy(
+            identifier = identifier.trim(),
+            password = "",
+            isLoading = false,
+            errorMessage = null,
+            authenticatedRole = role,
+        )
     }
 
-    fun setLoading(loading: Boolean) {
-        _uiState.value = _uiState.value.copy(
-            isLoading = loading
-        )
+    fun login(onSuccess: (UserRole) -> Unit) {
+        if (_uiState.value.isLoading) return
+
+        val current = _uiState.value
+        val identifier = current.identifier.trim()
+        val password = current.password
+
+        when {
+            identifier.isBlank() -> showError("Ingresa tu correo o nombre de usuario.")
+            password.isBlank() -> showError("Debes ingresar la contraseña.")
+            else -> viewModelScope.launch {
+                _uiState.value = current.copy(
+                    identifier = identifier,
+                    isLoading = true,
+                    errorMessage = null,
+                )
+
+                try {
+                    val response = VocationalRepository.login(
+                        username = identifier,
+                        password = password,
+                        remember = current.rememberMe,
+                    )
+                    val role = response.role.toUserRole()
+                    _uiState.value = _uiState.value.copy(
+                        password = "",
+                        isLoading = false,
+                        authenticatedRole = role,
+                    )
+                    onSuccess(role)
+                } catch (error: ApiException) {
+                    showError(error.message)
+                }
+            }
+        }
     }
 
     fun showError(message: String) {
         _uiState.value = _uiState.value.copy(
             isLoading = false,
-            errorMessage = message
+            errorMessage = message,
         )
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(
-            errorMessage = null
-        )
-    }
-
-    private fun isValidEmail(email: String): Boolean {
-        val emailRegex =
-            Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
-
-        return emailRegex.matches(email)
+        _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
     fun clearSession() {
-        val currentState = _uiState.value
-
+        val current = _uiState.value
+        VocationalRepository.logout()
         _uiState.value = LoginUiState(
-            email = if (currentState.rememberMe) {
-                currentState.email
-            } else {
-                ""
-            },
-            password = "",
-            rememberMe = currentState.rememberMe,
-            isLoading = false,
-            errorMessage = null,
-            authenticatedRole = null,
+            identifier = if (current.rememberMe) current.identifier else "",
+            rememberMe = current.rememberMe,
         )
     }
+}
 
-    companion object {
-        const val ADMIN_DEMO_EMAIL = "admin@usb.edu.co"
-    }
+internal fun String.toUserRole(): UserRole = when (trim().uppercase()) {
+    "ROOT", "ADMIN", "ADMINISTRADOR" -> UserRole.Admin
+    else -> UserRole.Student
 }
