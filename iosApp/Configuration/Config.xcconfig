@@ -1,0 +1,11 @@
+// Identificador del equipo de Apple Developer. Puede dejarse vacío para el simulador.
+TEAM_ID =
+
+PRODUCT_NAME = Vocacional
+PRODUCT_BUNDLE_IDENTIFIER = com.usbbog.orientacionvocacional
+MARKETING_VERSION = 1.0
+CURRENT_PROJECT_VERSION = 1
+
+// En un iPhone físico se debe reemplazar localhost por la URL HTTPS del backend.
+// $() evita que xcconfig interprete // como el inicio de un comentario.
+API_BASE_URL = http:/$()/localhost:8088/
