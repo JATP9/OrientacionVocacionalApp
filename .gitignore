@@ -16,6 +16,13 @@ captures/
 .DS_Store
 Thumbs.db
 
+# Xcode
+DerivedData/
+**/xcuserdata/
+*.xcuserstate
+*.ipa
+*.dSYM/
+
 # Paquetes generados
 *.apk
 *.aab
@@ -28,3 +35,9 @@ keystore.properties
 # Variables de entorno
 .env
 .env.*
+
+# Archivos locales de respaldo
+_respaldo_fuentes_android_antiguas/
+compileDebugKotlin.log
+kotlin_error.log
+kotlin_error_nuevo.log
